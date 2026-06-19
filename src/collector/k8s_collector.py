@@ -83,6 +83,18 @@ class K8sMetricsCollector:
                     node_ip = addr.address
                     break
 
+            # 노드 OS/커널/역할 정보
+            node_info = node.status.node_info or {}
+            os_distro = getattr(node_info, "os_image", "") or ""
+            kernel_version = getattr(node_info, "kernel_version", "") or ""
+            labels = node.metadata.labels or {}
+            role_parts = [k.split("/")[-1] for k in labels if k.startswith("node-role.kubernetes.io/")]
+            role = ",".join(role_parts) if role_parts else "worker"
+
+            # CPU/Memory 총 용량 (capacity)
+            cpu_cap = self._parse_cpu(capacity.get("cpu", "0"))
+            mem_cap = self._parse_memory(capacity.get("memory", "0"))
+
             # CPU: millicores → cores 변환
             cpu_alloc = self._parse_cpu(allocatable.get("cpu", "0"))
             mem_alloc = self._parse_memory(allocatable.get("memory", "0"))
@@ -102,6 +114,11 @@ class K8sMetricsCollector:
             nodes_data.append({
                 "name": name,
                 "node_ip": node_ip,
+                "role": role,
+                "os_distro": os_distro,
+                "kernel_version": kernel_version,
+                "cpu_cores": int(cpu_cap),
+                "memory_total_bytes": mem_cap,
                 "status": "Ready" if conditions.get("Ready") else "NotReady",
                 # 할당 가능 리소스
                 "cpu_allocatable": cpu_alloc,

@@ -137,10 +137,10 @@ def nodes(cluster: str = typer.Argument(..., help="클러스터 이름")):
             r.get("node_name", ""),
             r.get("node_ip", ""),
             r.get("role", ""),
-            r.get("os_version", ""),
+            r.get("os_distro", ""),
             r.get("kernel_version", ""),
             str(r.get("cpu_cores", "")),
-            f"{(r.get('total_memory_bytes') or 0) / 1024**3:.1f}",
+            f"{(r.get('memory_total_bytes') or 0) / 1024**3:.1f}",
         )
     console.print(t)
 

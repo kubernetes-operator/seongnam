@@ -17,17 +17,28 @@ async def upsert_cluster_node(
     async with pool.acquire() as conn:
         await conn.execute(
             """
-            INSERT INTO cluster_nodes (cluster_name, node_name, node_ip, cpu_cores, updated_at)
-            VALUES ($1, $2, $3, $4, NOW())
+            INSERT INTO cluster_nodes
+                (cluster_name, node_name, node_ip, role, os_distro,
+                 kernel_version, cpu_cores, memory_total_bytes, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
             ON CONFLICT (cluster_name, node_name)
-            DO UPDATE SET node_ip = EXCLUDED.node_ip,
-                          cpu_cores = COALESCE(EXCLUDED.cpu_cores, cluster_nodes.cpu_cores),
-                          updated_at = NOW()
+            DO UPDATE SET
+                node_ip            = EXCLUDED.node_ip,
+                role               = COALESCE(EXCLUDED.role,               cluster_nodes.role),
+                os_distro          = COALESCE(EXCLUDED.os_distro,          cluster_nodes.os_distro),
+                kernel_version     = COALESCE(EXCLUDED.kernel_version,     cluster_nodes.kernel_version),
+                cpu_cores          = COALESCE(EXCLUDED.cpu_cores,          cluster_nodes.cpu_cores),
+                memory_total_bytes = COALESCE(EXCLUDED.memory_total_bytes, cluster_nodes.memory_total_bytes),
+                updated_at         = NOW()
             """,
             cluster_name,
             node_name,
             node_ip or "",
+            kwargs.get("role"),
+            kwargs.get("os_distro"),
+            kwargs.get("kernel_version"),
             kwargs.get("cpu_cores"),
+            kwargs.get("memory_total_bytes"),
         )
 
 

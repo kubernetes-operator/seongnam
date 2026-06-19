@@ -67,13 +67,18 @@ async def _collect_and_store(
     for node in nodes:
         node_name = node["name"]
 
-        # cluster_nodes 레지스트리 upsert
+        # cluster_nodes 레지스트리 upsert (OS/커널/역할/용량 포함)
         try:
             await upsert_cluster_node(
                 pool,
                 cluster_name,
                 node_name,
                 node.get("node_ip", ""),
+                role=node.get("role"),
+                os_distro=node.get("os_distro"),
+                kernel_version=node.get("kernel_version"),
+                cpu_cores=node.get("cpu_cores"),
+                memory_total_bytes=node.get("memory_total_bytes"),
             )
         except Exception as e:
             logger.warning("upsert_cluster_node failed for %s: %s", node_name, e)

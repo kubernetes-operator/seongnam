@@ -33,7 +33,7 @@ export async function renderNodes(cluster) {
       <td class="${mem>=90?'text-danger':mem>=80?'text-warning':'text-success'}">${icon(mem)} ${mem.toFixed(1)}%</td>
       <td class="${disk>=90?'text-danger':disk>=75?'text-warning':'text-success'}">${icon(disk,75,90)} ${disk.toFixed(1)}%</td>
       <td>${k8s.pod_count||0}</td>
-      <td>${n.os_version||''}</td>
+      <td>${n.os_distro||''}</td>
     </tr>`
   }).join('')
 
