@@ -13,9 +13,12 @@ spec:
       labels:
         app: k8s-monitor-dashboard
     spec:
+      hostAliases:
+        - ip: "192.168.77.100"
+          hostnames: ["registry.local.cloud"]
       containers:
         - name: dashboard
-          image: harbor.osci.kr/k8s-monitor/dashboard:latest
+          image: registry.local.cloud:5000/k8s-monitor/dashboard:latest
           ports:
             - containerPort: 80
           env:

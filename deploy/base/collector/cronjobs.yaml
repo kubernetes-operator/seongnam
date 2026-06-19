@@ -13,7 +13,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: reporter
-              image: harbor.osci.kr/k8s-monitor/collector:latest
+              image: registry.local.cloud:5000/k8s-monitor/collector:latest
               env:
                 - name: COLLECTOR_MODE
                   value: report
@@ -43,7 +43,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: predictor
-              image: harbor.osci.kr/k8s-monitor/collector:latest
+              image: registry.local.cloud:5000/k8s-monitor/collector:latest
               env:
                 - name: COLLECTOR_MODE
                   value: predict

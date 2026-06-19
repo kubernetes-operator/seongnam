@@ -7,11 +7,11 @@ bases:
   - ../../base
 
 images:
-  - name: harbor.osci.kr/k8s-monitor/api
+  - name: registry.local.cloud:5000/k8s-monitor/api
     newTag: "latest"
-  - name: harbor.osci.kr/k8s-monitor/collector
+  - name: registry.local.cloud:5000/k8s-monitor/collector
     newTag: "latest"
-  - name: harbor.osci.kr/k8s-monitor/dashboard
+  - name: registry.local.cloud:5000/k8s-monitor/dashboard
     newTag: "latest"
 
 patches:

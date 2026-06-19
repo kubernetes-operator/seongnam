@@ -4,7 +4,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: k8s-monitor-sa
-  namespace: k8s-monitor
+  namespace: monitoring
   labels:
     app: k8s-monitor
     component: rbac
@@ -58,4 +58,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: k8s-monitor-sa
-    namespace: k8s-monitor
+    namespace: monitoring

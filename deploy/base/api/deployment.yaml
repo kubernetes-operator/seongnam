@@ -14,9 +14,12 @@ spec:
         app: k8s-monitor-api
     spec:
       serviceAccountName: k8s-monitor-sa
+      hostAliases:
+        - ip: "192.168.77.100"
+          hostnames: ["registry.local.cloud"]
       containers:
         - name: api
-          image: harbor.osci.kr/k8s-monitor/api:latest
+          image: registry.local.cloud:5000/k8s-monitor/api:latest
           ports:
             - containerPort: 8000
           env:
