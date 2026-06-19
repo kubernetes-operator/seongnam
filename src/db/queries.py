@@ -193,15 +193,17 @@ async def query_metric_timeseries(
     end: str,
     interval: str = "1h",
 ) -> list[dict]:
-    if interval in ("1h", "2h", "6h"):
+    # os_metrics_hourly 컬럼명 매핑
+    _HOURLY_COL = {
+        "cpu_usage_ratio":    "cpu_avg",
+        "memory_usage_ratio": "mem_avg",
+        "disk_usage_ratio":   "disk_avg",
+        "load1":              "load_avg",
+        "load_per_core":      "load_avg",
+    }
+    if interval in ("1h", "2h", "6h") and metric in _HOURLY_COL:
         table, time_col = "os_metrics_hourly", "bucket"
-        metric_col = metric.replace("_ratio", "_avg") if metric.endswith("_ratio") else f"{metric}_avg"
-        # fallback to direct column
-        try:
-            pass
-        except Exception:
-            table, time_col = "os_metrics", "time"
-            metric_col = metric
+        metric_col = _HOURLY_COL[metric]
     else:
         table, time_col = "os_metrics", "time"
         metric_col = metric
