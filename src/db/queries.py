@@ -206,6 +206,12 @@ async def query_metric_timeseries(
         table, time_col = "os_metrics", "time"
         metric_col = metric
 
+    # asyncpg는 datetime 객체를 요구한다 — 문자열이면 파싱
+    def _parse_dt(v):
+        if isinstance(v, datetime):
+            return v
+        return datetime.fromisoformat(str(v))
+
     sql = f"""
         SELECT
             time_bucket($1::interval, {time_col}) AS bucket,
@@ -215,12 +221,15 @@ async def query_metric_timeseries(
         FROM {table}
         WHERE cluster_name = $2
           AND node_name = $3
-          AND {time_col} BETWEEN $4::timestamptz AND $5::timestamptz
+          AND {time_col} BETWEEN $4 AND $5
         GROUP BY bucket
         ORDER BY bucket ASC
     """
     async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, _to_timedelta(interval), cluster_name, node_name, start, end)
+        rows = await conn.fetch(
+            sql, _to_timedelta(interval), cluster_name, node_name,
+            _parse_dt(start), _parse_dt(end),
+        )
     return [
         {
             "time": row["bucket"].isoformat(),
