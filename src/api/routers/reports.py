@@ -1,5 +1,4 @@
 """리포트 엔드포인트."""
-import asyncio
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -66,22 +65,15 @@ async def download_report(report_id: str, fmt: str = Query("html"), pool=Depends
 
 @router.post("/generate", dependencies=[Depends(verify_api_key)])
 async def generate_report(req: ReportGenerateRequest, pool=Depends(get_pool)):
+    import logging
     from reports.generator import ReportGenerator
+    logger = logging.getLogger(__name__)
     generator = ReportGenerator(pool)
-
-    async def _run():
-        return await generator.generate(
+    try:
+        result = await generator.generate(
             req.report_type, req.cluster_name, req.output_formats
         )
-
-    # 백그라운드 태스크로 실행
-    task = asyncio.create_task(_run())
-
-    async def _background():
-        try:
-            await task
-        except Exception:
-            pass
-
-    asyncio.ensure_future(_background())
-    return ApiResponse.ok({"status": "generating", "cluster": req.cluster_name, "type": req.report_type})
+        return ApiResponse.ok(result)
+    except Exception as e:
+        logger.error("리포트 생성 실패: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

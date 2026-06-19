@@ -43,10 +43,13 @@ export async function renderReports(cluster) {
     const t = document.getElementById('report-type').value
     const btn = document.getElementById('gen-btn')
     btn.disabled = true; btn.textContent = '생성 중...'
-    await API.reports.generate(cluster, t).catch(() => null)
-    // 백그라운드 생성이므로 5초 후와 15초 후 두 번 갱신
-    setTimeout(() => loadReports(), 5000)
-    setTimeout(() => { btn.disabled=false; btn.textContent='생성'; loadReports() }, 15000)
+    try {
+      await API.reports.generate(cluster, t)
+    } catch(e) {
+      alert('리포트 생성 실패: ' + e.message)
+    }
+    btn.disabled = false; btn.textContent = '생성'
+    loadReports()
   })
 
   loadReports()
