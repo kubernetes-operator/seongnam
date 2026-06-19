@@ -15,8 +15,9 @@ export async function renderNodes(cluster) {
     API.metrics.summary(cluster),
   ]).catch(() => [{data:[]}, {data:{os:{}}}])
 
-  const osData = summary?.data?.os || {}
-  const k8sData = summary?.data?.k8s || {}
+  // API returns arrays; convert to dicts keyed by node_name
+  const osData  = Object.fromEntries((summary?.data?.os  || []).map(r => [r.node_name, r]))
+  const k8sData = Object.fromEntries((summary?.data?.k8s || []).map(r => [r.node_name, r]))
 
   const rows = (nodes?.data || []).map(n => {
     const os  = osData[n.node_name]  || {}
@@ -32,7 +33,7 @@ export async function renderNodes(cluster) {
       <td class="${cpu>=90?'text-danger':cpu>=80?'text-warning':'text-success'}">${icon(cpu)} ${cpu.toFixed(1)}%</td>
       <td class="${mem>=90?'text-danger':mem>=80?'text-warning':'text-success'}">${icon(mem)} ${mem.toFixed(1)}%</td>
       <td class="${disk>=90?'text-danger':disk>=75?'text-warning':'text-success'}">${icon(disk,75,90)} ${disk.toFixed(1)}%</td>
-      <td>${k8s.pod_count||0}</td>
+      <td>${k8s.pods_running||0}</td>
       <td>${n.os_distro||''}</td>
     </tr>`
   }).join('')

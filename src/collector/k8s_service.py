@@ -13,6 +13,7 @@ import asyncio
 import logging
 import os
 import sys
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,11 @@ async def _collect_and_store(
 ) -> None:
     """한 번의 수집 사이클을 수행한다."""
     data = collector.collect_all(cluster_name)
-    collected_at = data["collected_at"]
+    collected_at_raw = data["collected_at"]
+    if isinstance(collected_at_raw, str):
+        collected_at = datetime.fromisoformat(collected_at_raw)
+    else:
+        collected_at = collected_at_raw
     nodes = data.get("nodes", [])
     pods_summary = data.get("pods_summary", {})
     recent_warnings = data.get("recent_warnings", [])

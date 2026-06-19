@@ -326,10 +326,12 @@ class K8sMetricsCollector:
     # ------------------------------------------------------------------
 
     def _parse_cpu(self, cpu_str: str) -> float:
-        """'250m' → 0.25, '2' → 2.0 코어 단위로 변환한다."""
+        """'250m' → 0.25, '2' → 2.0, '500000000n' → 0.5 코어 단위로 변환한다."""
         if not cpu_str:
             return 0.0
         cpu_str = str(cpu_str).strip()
+        if cpu_str.endswith("n"):
+            return int(cpu_str[:-1]) / 1_000_000_000
         if cpu_str.endswith("m"):
             return int(cpu_str[:-1]) / 1000
         try:
