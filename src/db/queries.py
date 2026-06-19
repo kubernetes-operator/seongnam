@@ -1,8 +1,22 @@
 """TimescaleDB 쿼리 함수 모음."""
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
+
+
+def _to_timedelta(interval) -> timedelta:
+    """'1h', '1d', '7d' 같은 문자열을 timedelta로 변환한다."""
+    if isinstance(interval, timedelta):
+        return interval
+    s = str(interval).strip()
+    if s.endswith("h"):
+        return timedelta(hours=int(s[:-1]))
+    if s.endswith("d"):
+        return timedelta(days=int(s[:-1]))
+    if s.endswith("m"):
+        return timedelta(minutes=int(s[:-1]))
+    raise ValueError(f"알 수 없는 interval 형식: {s!r}")
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +220,7 @@ async def query_metric_timeseries(
         ORDER BY bucket ASC
     """
     async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, interval, cluster_name, node_name, start, end)
+        rows = await conn.fetch(sql, _to_timedelta(interval), cluster_name, node_name, start, end)
     return [
         {
             "time": row["bucket"].isoformat(),

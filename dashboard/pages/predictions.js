@@ -23,9 +23,10 @@ export async function renderPredictions(cluster) {
   ]
 
   const rows = nodes.map(n => METRICS.map(m => {
-    const p = (n.predictions||{})[m.key] || {}
-    if (p.status === 'insufficient_data') {
-      return `<tr><td>${n.node_name}</td><td>${m.label}</td><td colspan="4" class="text-muted">데이터 부족</td></tr>`
+    const p = (n.predictions||{})[m.key]
+    // 데이터 없음 또는 부족 상태
+    if (!p || !p.status || p.status === 'insufficient_data') {
+      return `<tr><td>${n.node_name}</td><td>${m.label}</td><td colspan="4" class="text-muted small">데이터 부족 (수집 14일 후 표시)</td></tr>`
     }
     const cur  = p.current_value||0
     const d7   = p.forecast_7d||0
