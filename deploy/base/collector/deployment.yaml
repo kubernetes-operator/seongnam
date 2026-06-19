@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-monitor-collector-os
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-monitor-collector-os
+  template:
+    metadata:
+      labels:
+        app: k8s-monitor-collector-os
+    spec:
+      serviceAccountName: k8s-monitor-sa
+      containers:
+        - name: collector
+          image: harbor.osci.kr/k8s-monitor/collector:latest
+          env:
+            - name: COLLECTOR_MODE
+              value: os
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: k8s-monitor-db-secret
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-monitor-collector-k8s
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-monitor-collector-k8s
+  template:
+    metadata:
+      labels:
+        app: k8s-monitor-collector-k8s
+    spec:
+      serviceAccountName: k8s-monitor-sa
+      containers:
+        - name: collector
+          image: harbor.osci.kr/k8s-monitor/collector:latest
+          env:
+            - name: COLLECTOR_MODE
+              value: k8s
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: k8s-monitor-db-secret
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi

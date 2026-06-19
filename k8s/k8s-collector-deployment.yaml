@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-monitor-k8s-collector
+  namespace: k8s-monitor
+  labels:
+    app: k8s-monitor
+    component: k8s-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-monitor
+      component: k8s-collector
+  template:
+    metadata:
+      labels:
+        app: k8s-monitor
+        component: k8s-collector
+    spec:
+      serviceAccountName: k8s-monitor-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: k8s-collector
+          image: k8s-monitor/collector:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "collector.k8s_service"]
+          env:
+            - name: CLUSTER_NAME
+              value: "playce-k8s"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: k8s-monitor-db-secret
+                  key: database-url
+            - name: COLLECT_INTERVAL
+              value: "60"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import sys; sys.exit(0)"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["python", "-c", "import sys; sys.exit(0)"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

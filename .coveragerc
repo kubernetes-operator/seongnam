@@ -1,0 +1,13 @@
+[run]
+source = src
+omit =
+    */test_*
+    src/db/migrate.py
+
+[report]
+fail_under = 80
+show_missing = true
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    raise NotImplementedError

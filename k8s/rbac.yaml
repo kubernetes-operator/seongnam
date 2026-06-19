@@ -1,0 +1,61 @@
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-monitor-sa
+  namespace: k8s-monitor
+  labels:
+    app: k8s-monitor
+    component: rbac
+
+---
+# ClusterRole — 읽기 전용 최소 권한
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-monitor-reader
+  labels:
+    app: k8s-monitor
+    component: rbac
+rules:
+  # Core API — 노드, 파드, 이벤트, 네임스페이스, 서비스
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - pods
+      - events
+      - namespaces
+      - services
+    verbs: ["get", "list", "watch"]
+  # Apps API — Deployment, StatefulSet, DaemonSet
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+    verbs: ["get", "list"]
+  # Metrics API — 실제 CPU/Memory 사용량 (metrics-server)
+  - apiGroups: ["metrics.k8s.io"]
+    resources:
+      - nodes
+      - pods
+    verbs: ["get", "list"]
+
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-monitor-reader-binding
+  labels:
+    app: k8s-monitor
+    component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-monitor-reader
+subjects:
+  - kind: ServiceAccount
+    name: k8s-monitor-sa
+    namespace: k8s-monitor

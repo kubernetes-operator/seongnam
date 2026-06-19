@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>K8s OS Monitor</title>
+  <!-- Bootstrap 5 CDN 대신 인라인 CSS 사용 (nginx는 인터넷 없이 동작) -->
+  <!-- deploy/entrypoint.sh 가 window.API_BASE_URL 를 주입함 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+        crossorigin="anonymous">
+  <style>
+    body { font-size: 0.9rem; }
+    .sidebar { width: 200px; min-height: 100vh; background: #1e293b; }
+    .sidebar .nav-link { color: #94a3b8; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; background: #334155; border-radius: 6px; }
+    .sidebar .brand { color: #38bdf8; font-weight: 700; font-size: 1rem; }
+    #main-content { min-height: 80vh; }
+    .spinner-border { width: 2rem; height: 2rem; }
+  </style>
+</head>
+<body>
+<div class="d-flex">
+  <!-- 사이드바 -->
+  <nav class="sidebar d-flex flex-column p-3">
+    <div class="brand mb-4">☸ K8s Monitor</div>
+    <ul class="nav flex-column gap-1">
+      <li class="nav-item"><a class="nav-link" href="#dashboard">📊 대시보드</a></li>
+      <li class="nav-item"><a class="nav-link" href="#nodes">🖥 노드</a></li>
+      <li class="nav-item"><a class="nav-link" href="#events">🚨 이벤트</a></li>
+      <li class="nav-item"><a class="nav-link" href="#predictions">🔮 예측</a></li>
+      <li class="nav-item"><a class="nav-link" href="#reports">📄 리포트</a></li>
+    </ul>
+    <div class="mt-auto">
+      <button class="btn btn-sm btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#api-key-modal">
+        🔑 API Key
+      </button>
+    </div>
+  </nav>
+
+  <!-- 메인 -->
+  <div class="flex-grow-1 p-4">
+    <!-- 상단 바 -->
+    <div class="d-flex align-items-center mb-3 gap-3">
+      <select id="cluster-select" class="form-select form-select-sm w-auto">
+        <option>클러스터 로딩 중...</option>
+      </select>
+      <button id="refresh-btn" class="btn btn-sm btn-outline-primary">↻ 새로고침</button>
+    </div>
+
+    <div id="main-content">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- API Key 모달 -->
+<div class="modal fade" id="api-key-modal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header"><h6 class="modal-title">API Key 설정</h6></div>
+      <div class="modal-body">
+        <form id="api-key-form">
+          <input type="password" id="api-key-input" class="form-control form-control-sm mb-2"
+                 placeholder="Bearer token">
+          <button type="submit" class="btn btn-sm btn-primary w-100">저장</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js (외부 CDN — 내부망이면 nginx로 프록시하거나 번들) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

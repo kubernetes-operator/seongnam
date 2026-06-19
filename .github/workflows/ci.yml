@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: arc-runner-set
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check src tests
+
+  unit-test:
+    name: Unit Tests
+    runs-on: arc-runner-set
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: PYTHONPATH=src pytest tests/unit -v --cov=src --cov-report=xml --cov-fail-under=80
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  integration-test:
+    name: Integration Tests
+    runs-on: arc-runner-set
+    needs: unit-test
+    # 클러스터 내부에서만 접근 가능 — 실패해도 PR 블록하지 않음
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: |
+          INTEGRATION_TEST=1 \
+          DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+          PYTHONPATH=src pytest tests/integration -v
+
+  docker-build-check:
+    name: Docker Build Check
+    runs-on: arc-runner-set
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.api
+          push: false
+          tags: k8s-monitor-api:pr-check
+      - name: Build Collector (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.collector
+          push: false
+          tags: k8s-monitor-collector:pr-check
+      - name: Build Dashboard (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.dashboard
+          push: false
+          tags: k8s-monitor-dashboard:pr-check
