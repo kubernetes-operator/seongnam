@@ -33,6 +33,9 @@ spec:
                 secretKeyRef:
                   name: k8s-monitor-api-secret
                   key: API_KEY
+          volumeMounts:
+            - name: reports
+              mountPath: /reports
           resources:
             requests:
               cpu: 200m
@@ -52,3 +55,6 @@ spec:
               port: 8000
             initialDelaySeconds: 5
             periodSeconds: 10
+      volumes:
+        - name: reports
+          emptyDir: {}
