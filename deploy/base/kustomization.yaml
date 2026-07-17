@@ -11,4 +11,3 @@ resources:
   - collector/deployment.yaml
   - collector/cronjobs.yaml
   - dashboard/deployment.yaml
-  - ../../k8s/rbac.yaml

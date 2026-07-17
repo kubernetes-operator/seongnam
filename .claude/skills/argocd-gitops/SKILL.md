@@ -76,7 +76,7 @@ kubectl get secret argocd-initial-admin-secret -n argocd \
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: k8s-monitor-prod
+  name: os-monitor-prod
   namespace: argocd
 spec:
   project: default
@@ -86,7 +86,7 @@ spec:
     path: deploy/overlays/prod
   destination:
     server: https://kubernetes.default.svc
-    namespace: k8s-monitor
+    namespace: os-monitor
   syncPolicy:
     automated:
       prune: true       # 삭제된 리소스 자동 제거
@@ -112,7 +112,7 @@ spec:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: k8s-monitor
+namespace: os-monitor
 
 resources:
   - namespace.yaml
@@ -131,7 +131,7 @@ resources:
   - cronjobs/report-yearly.yaml
 
 commonLabels:
-  app.kubernetes.io/part-of: k8s-monitor
+  app.kubernetes.io/part-of: os-monitor
   app.kubernetes.io/managed-by: argocd
 ```
 
@@ -146,14 +146,14 @@ resources:
 
 # CD 워크플로우에서 git SHA로 자동 업데이트됨
 images:
-  - name: k8s-monitor/api
-    newName: harbor.<domain>/k8s-monitor/api
+  - name: os-monitor/api
+    newName: harbor.<domain>/os-monitor/api
     newTag: abc1234
-  - name: k8s-monitor/collector
-    newName: harbor.<domain>/k8s-monitor/collector
+  - name: os-monitor/collector
+    newName: harbor.<domain>/os-monitor/collector
     newTag: abc1234
-  - name: k8s-monitor/dashboard
-    newName: harbor.<domain>/k8s-monitor/dashboard
+  - name: os-monitor/dashboard
+    newName: harbor.<domain>/os-monitor/dashboard
     newTag: abc1234
 
 patches:
@@ -166,14 +166,14 @@ patches:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: k8s-monitor-api
+  name: os-monitor-api
 spec:
   replicas: 2
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: k8s-monitor-dashboard
+  name: os-monitor-dashboard
 spec:
   replicas: 2
 ```
@@ -184,14 +184,14 @@ spec:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: k8s-monitor-dev
+namespace: os-monitor-dev
 
 resources:
   - ../../base
 
 images:
-  - name: k8s-monitor/api
-    newName: harbor.<domain>/k8s-monitor/api
+  - name: os-monitor/api
+    newName: harbor.<domain>/os-monitor/api
     newTag: latest
 
 patches:
@@ -208,7 +208,7 @@ kubectl create secret docker-registry harbor-registry-secret \
   --docker-server=harbor.<domain> \
   --docker-username=<user> \
   --docker-password=<pass> \
-  -n k8s-monitor
+  -n os-monitor
 ```
 
 각 Deployment의 `spec.template.spec`에 참조:
@@ -227,12 +227,12 @@ imagePullSecrets:
 kubectl get applications -n argocd
 
 # 현재 배포된 이미지 태그 (어느 커밋이 배포되어 있는지)
-kubectl get deployment k8s-monitor-api -n k8s-monitor \
+kubectl get deployment os-monitor-api -n os-monitor \
   -o jsonpath='{.spec.template.spec.containers[0].image}'
 
 # ArgoCD CLI
-argocd app sync k8s-monitor-prod
-argocd app status k8s-monitor-prod
+argocd app sync os-monitor-prod
+argocd app status os-monitor-prod
 ```
 
 ---
@@ -244,7 +244,7 @@ argocd app status k8s-monitor-prod
 git revert HEAD && git push origin main
 
 # 방법 2: ArgoCD CLI로 특정 revision으로 롤백
-argocd app rollback k8s-monitor-prod <revision-id>
+argocd app rollback os-monitor-prod <revision-id>
 ```
 
 ---

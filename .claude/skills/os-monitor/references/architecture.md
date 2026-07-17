@@ -1,14 +1,12 @@
-# K8s OS Monitor — 아키텍처 참조
+# OS Monitor — 아키텍처 참조
 
 ## 전체 컴포넌트 구성
 
 ```
-k8s-monitor/                        # 프로젝트 루트
+os-monitor/                         # 프로젝트 루트
 ├── collector/
 │   ├── os_collector.py             # OSMetricsCollector (psutil 기반)
-│   ├── os_service.py               # DaemonSet 수집 루프
-│   ├── k8s_collector.py            # K8sMetricsCollector (kubernetes-client)
-│   └── k8s_service.py              # 다중 클러스터 수집 루프
+│   └── os_service.py               # DaemonSet 수집 루프
 ├── analysis/
 │   ├── crisis_catalog.py           # 위기 유형 카탈로그
 │   ├── crisis_engine.py            # 임계값 감지 + 로그 분석
@@ -47,14 +45,12 @@ k8s-monitor/                        # 프로젝트 루트
     ├── statefulset-timescaledb.yaml
     ├── service-timescaledb.yaml
     ├── daemonset-collector.yaml    # OS 수집기
-    ├── deployment-k8s-collector.yaml
     ├── deployment-api.yaml
     ├── hpa-api.yaml
     ├── deployment-dashboard.yaml
     ├── service-api.yaml
     ├── service-dashboard.yaml
     ├── ingress.yaml
-    ├── rbac.yaml
     ├── cronjob-daily-report.yaml
     ├── cronjob-weekly-report.yaml
     ├── cronjob-monthly-report.yaml
@@ -68,9 +64,8 @@ k8s-monitor/                        # 프로젝트 루트
 |--------|------|------|
 | timescaledb | StatefulSet | TimescaleDB 데이터베이스 |
 | os-collector | DaemonSet | 각 노드에서 OS 메트릭 수집 |
-| k8s-collector | Deployment | Kubernetes API 메트릭 수집 |
-| k8s-monitor-api | Deployment | REST API 서버 |
-| k8s-monitor-dashboard | Deployment | 웹 대시보드 (nginx) |
+| os-monitor-api | Deployment | REST API 서버 |
+| os-monitor-dashboard | Deployment | 웹 대시보드 (nginx) |
 | report-daily/weekly/monthly/yearly | CronJob | 정기 리포트 생성 |
 
 ## 포트 구성
@@ -85,7 +80,7 @@ k8s-monitor/                        # 프로젝트 루트
 
 | 변수 | 설명 | 예시 |
 |------|------|------|
-| DATABASE_URL | TimescaleDB 접속 URL | postgresql://user:pass@timescaledb:5432/k8s_monitor |
+| DATABASE_URL | TimescaleDB 접속 URL | postgresql://user:pass@timescaledb:5432/os_monitor |
 | API_KEYS | 쉼표 구분 API 키 목록 | key1,key2 |
 | CLUSTER_NAME | 현재 클러스터 이름 (수집기) | prod-cluster-01 |
 | NODE_NAME | 현재 노드 이름 (DaemonSet, fieldRef) | node-01 |
@@ -98,9 +93,6 @@ k8s-monitor/                        # 프로젝트 루트
 - `cpu_usage_ratio` = 실제 CPU 사용% (0~100)
 - `memory_usage_ratio` = 사용 메모리 / 전체 메모리 × 100
 - `disk_usage_ratio` = 사용 디스크 / 전체 디스크 × 100
-- `cpu_usage_ratio` (K8s) = 실제 사용 CPU / Allocatable CPU × 100
-- `memory_usage_ratio` (K8s) = 실제 사용 메모리 / Allocatable 메모리 × 100
-- `cpu_request_ratio` = 요청 CPU / Allocatable CPU × 100
 
 ## 임계값 기준
 
@@ -110,5 +102,3 @@ k8s-monitor/                        # 프로젝트 루트
 | Memory 사용률 | > 80% | > 90% |
 | Disk 사용률 | > 75% | > 90% |
 | Load / 코어 | > 1.5 | > 2.0 |
-| K8s CPU 사용률 | > 75% | > 90% |
-| K8s Memory 사용률 | > 80% | > 90% |

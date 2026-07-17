@@ -1,4 +1,4 @@
-"""K8s OS Monitor CLI — Typer + Rich."""
+"""OS Monitor CLI — Typer + Rich."""
 import asyncio
 import json
 import os
@@ -11,7 +11,7 @@ from rich.table import Table
 from rich import box
 from rich.text import Text
 
-app = typer.Typer(name="monitor", help="K8s OS Monitor CLI")
+app = typer.Typer(name="monitor", help="OS Monitor CLI")
 console = Console()
 
 # ── 임계값 색상 ─────────────────────────────────────────────────────────────
@@ -52,14 +52,13 @@ def status(cluster: str = typer.Argument(..., help="클러스터 이름")):
     """클러스터 전체 상태 요약을 출력합니다."""
     async def _run():
         from db.pool import get_pool
-        from db.queries import query_latest_metrics, query_latest_k8s_metrics, query_events
+        from db.queries import query_latest_metrics, query_events
         pool = await get_pool()
         os_m  = await query_latest_metrics(pool, cluster)
-        k8s_m = await query_latest_k8s_metrics(pool, cluster)
         evts  = await query_events(pool, cluster, resolved=False, limit=5)
-        return os_m, k8s_m, evts
+        return os_m, evts
 
-    os_m, k8s_m, evts = asyncio.run(_run())
+    os_m, evts = asyncio.run(_run())
 
     console.print(f"\n[bold cyan]클러스터:[/] {cluster}", highlight=False)
 
@@ -127,7 +126,6 @@ def nodes(cluster: str = typer.Argument(..., help="클러스터 이름")):
     t = Table(title=f"노드 목록 — {cluster}", box=box.ROUNDED)
     t.add_column("노드명",     style="cyan")
     t.add_column("IP")
-    t.add_column("역할")
     t.add_column("OS")
     t.add_column("Kernel")
     t.add_column("CPU 코어", justify="right")
@@ -136,7 +134,6 @@ def nodes(cluster: str = typer.Argument(..., help="클러스터 이름")):
         t.add_row(
             r.get("node_name", ""),
             r.get("node_ip", ""),
-            r.get("role", ""),
             r.get("os_distro", ""),
             r.get("kernel_version", ""),
             str(r.get("cpu_cores", "")),
@@ -192,51 +189,6 @@ def os_metrics(
             f"{rx:.1f}",
             str(zomb),
             _pct(inode),
-        )
-    console.print(t)
-
-
-# ── k8s ─────────────────────────────────────────────────────────────────────
-
-@app.command()
-def k8s(
-    cluster: str = typer.Argument(..., help="클러스터 이름"),
-    node: Optional[str] = typer.Option(None, help="특정 노드"),
-):
-    """K8s 노드 메트릭을 출력합니다."""
-    async def _run():
-        from db.pool import get_pool
-        from db.queries import query_latest_k8s_metrics
-        pool = await get_pool()
-        return await query_latest_k8s_metrics(pool, cluster)
-
-    data = asyncio.run(_run())
-    t = Table(title=f"K8s 메트릭 — {cluster}", box=box.ROUNDED)
-    t.add_column("노드",         style="cyan", no_wrap=True)
-    t.add_column("CPU요청%",     justify="right")
-    t.add_column("CPU한도%",     justify="right")
-    t.add_column("Mem요청%",     justify="right")
-    t.add_column("Mem한도%",     justify="right")
-    t.add_column("Pod수",        justify="right")
-    t.add_column("상태",         justify="center")
-    for nname, d in (data or {}).items():
-        if node and nname != node:
-            continue
-        cpu_req = d.get("cpu_request_ratio", 0.0)
-        cpu_lim = d.get("cpu_limit_ratio", 0.0)
-        mem_req = d.get("memory_request_ratio", 0.0)
-        mem_lim = d.get("memory_limit_ratio", 0.0)
-        pods    = d.get("pod_count", 0)
-        ready   = d.get("ready", True)
-        status_icon = "✅ Ready" if ready else "🔴 NotReady"
-        t.add_row(
-            nname,
-            Text(f"{_icon(cpu_req)} {_pct(cpu_req)}", style=_color(cpu_req)),
-            Text(_pct(cpu_lim), style=_color(cpu_lim)),
-            Text(f"{_icon(mem_req)} {_pct(mem_req)}", style=_color(mem_req)),
-            Text(_pct(mem_lim), style=_color(mem_lim)),
-            str(pods),
-            Text(status_icon, style="green" if ready else "red"),
         )
     console.print(t)
 

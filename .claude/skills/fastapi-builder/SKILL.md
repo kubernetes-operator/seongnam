@@ -40,8 +40,8 @@ from dependencies import startup, shutdown
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
-    title="K8s OS Monitor API",
-    description="Kubernetes 클러스터 OS 모니터링 REST API",
+    title="OS Monitor API",
+    description="Linux Base OS 모니터링 REST API",
     version="1.0.0",
     docs_url="/docs",
     openapi_url="/openapi.json",
@@ -232,32 +232,32 @@ async def generic_error_handler(request: Request, exc: Exception):
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: k8s-monitor-api
+  name: os-monitor-api
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: k8s-monitor-api
+      app: os-monitor-api
   template:
     metadata:
       labels:
-        app: k8s-monitor-api
+        app: os-monitor-api
     spec:
       containers:
       - name: api
-        image: k8s-monitor-api:latest
+        image: os-monitor-api:latest
         ports:
         - containerPort: 8000
         env:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: k8s-monitor-secrets
+              name: os-monitor-secrets
               key: database-url
         - name: API_KEYS
           valueFrom:
             secretKeyRef:
-              name: k8s-monitor-secrets
+              name: os-monitor-secrets
               key: api-keys
         resources:
           requests:

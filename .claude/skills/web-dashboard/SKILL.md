@@ -1,7 +1,7 @@
 ---
 name: web-dashboard
 description: |
-  Chart.js + Bootstrap 5 + Vanilla JavaScript로 Kubernetes OS 모니터링 웹 대시보드를 구현한다. 빌드 도구 없이 정적 HTML/JS로 구성하며, SPA 라우팅, 자동 갱신, 게이지 바, 시계열 그래프, 리포트 다운로드, 이벤트 카드, 예측 시각화를 포함한다. '웹 대시보드', '모니터링 UI', 'Chart.js', 'HTML 대시보드', '웹 인터페이스' 관련 구현 시 반드시 이 스킬을 사용할 것.
+  Chart.js + Bootstrap 5 + Vanilla JavaScript로 OS 모니터링 웹 대시보드를 구현한다. 빌드 도구 없이 정적 HTML/JS로 구성하며, SPA 라우팅, 자동 갱신, 게이지 바, 시계열 그래프, 리포트 다운로드, 이벤트 카드, 예측 시각화를 포함한다. '웹 대시보드', '모니터링 UI', 'Chart.js', 'HTML 대시보드', '웹 인터페이스' 관련 구현 시 반드시 이 스킬을 사용할 것.
 ---
 
 # Web Dashboard 스킬
@@ -32,7 +32,7 @@ dashboard/
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>K8s OS Monitor</title>
+  <title>OS Monitor</title>
   <!-- Bootstrap 5 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <!-- Chart.js -->
@@ -77,7 +77,7 @@ dashboard/
   <!-- 네비게이션 -->
   <nav class="navbar navbar-dark">
     <div class="container-fluid">
-      <span class="navbar-brand fw-bold">⚡ K8s OS Monitor</span>
+      <span class="navbar-brand fw-bold">⚡ OS Monitor</span>
       <div class="d-flex align-items-center gap-3">
         <select id="clusterSelect" class="form-select form-select-sm" style="width:200px;background:#0f172a;color:#e2e8f0;border-color:#334155"></select>
         <span id="lastUpdated" class="text-muted small"></span>
@@ -230,7 +230,7 @@ function ratioBadge(v) {
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: k8s-monitor-dashboard
+  name: os-monitor-dashboard
 spec:
   replicas: 2
   template:
@@ -252,6 +252,6 @@ spec:
 ConfigMap으로 API URL 주입:
 ```javascript
 // 빌드 시 env.js 생성
-window.ENV_API_URL = 'http://k8s-monitor-api.default.svc.cluster.local';
+window.ENV_API_URL = 'http://os-monitor-api.default.svc.cluster.local';
 window.ENV_API_KEY = '${API_KEY}';
 ```

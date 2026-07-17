@@ -41,11 +41,6 @@ model: opus
 - Memory 사용률 증가 추세
 - CPU 사용률 트렌드 (업무 시간대별)
 
-### Kubernetes 영역
-- 노드별 CPU/Memory 할당 포화 시점
-- 파드 수 증가 추세 (스케일링 필요 시점)
-- 클러스터 전체 리소스 수요 예측
-
 ## 미래 상태 제안 유형
 
 ### 용량 확장 권고
@@ -78,20 +73,6 @@ model: opus
   "avg_usage_ratio": 8.5,
   "recommendation": "node-07의 CPU 평균 사용률이 8.5%로 과소 사용 중. 워크로드 재분배 또는 노드 통합 검토.",
   "potential_saving": "해당 노드 제거 시 약 15% 인프라 비용 절감 가능"
-}
-```
-
-### 스케일링 예측
-```json
-{
-  "type": "scaling_prediction",
-  "cluster": "prod-cluster-01",
-  "trigger": "current_pod_count_trend",
-  "current_pods": 150,
-  "predicted_pods_30d": 210,
-  "current_node_capacity": 200,
-  "recommendation": "30일 내 파드 수가 노드 수용 한계(200)를 초과 예상. 노드 2개 추가 권고.",
-  "timeline": "2026-07-10 이전 준비 필요"
 }
 ```
 

@@ -24,7 +24,7 @@ pyright src/ --pythonversion 3.11
 ```
 
 ### Layer 3: 단위 테스트 (pytest)
-외부 의존성(DB, Prometheus, K8s)을 mock으로 대체하여 빠르게 실행한다.
+외부 의존성(DB, Prometheus)을 mock으로 대체하여 빠르게 실행한다.
 
 ```python
 # tests/unit/test_os_collector.py
@@ -56,7 +56,7 @@ async def test_threshold_check_triggers_alert():
 ```
 
 ### Layer 4: 통합 테스트 (실제 서비스 연동)
-실제 클러스터 서비스에 연결하여 검증한다. CI에서는 kubeconfig가 주입된 환경에서 실행.
+실제 클러스터 서비스에 연결하여 검증한다. CI 환경은 필요한 서비스(TimescaleDB, Prometheus, Loki)에 네트워크로 접근 가능한 상태에서 실행.
 
 ```python
 # tests/integration/test_prometheus_connection.py

@@ -72,7 +72,7 @@ class ReportGenerator:
     ) -> dict:
         from db.queries import (
             query_metric_timeseries, query_top_nodes, query_events,
-            query_latest_metrics, query_latest_k8s_metrics,
+            query_latest_metrics,
         )
 
         # 노드 목록
@@ -151,7 +151,7 @@ class ReportGenerator:
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>K8s Monitor Report — {summary.get('cluster_name','')} {summary.get('period_start','')[:10]}</title>
+<title>OS Monitor Report — {summary.get('cluster_name','')} {summary.get('period_start','')[:10]}</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   body {{ font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 1rem; }}
@@ -164,7 +164,7 @@ class ReportGenerator:
 </style>
 </head>
 <body>
-<h1>K8s OS Monitor 리포트</h1>
+<h1>OS Monitor 리포트</h1>
 <p><b>클러스터:</b> {summary.get('cluster_name','')} &nbsp;
    <b>기간:</b> {summary.get('period_start','')[:10]} ~ {summary.get('period_end','')[:10]}</p>
 

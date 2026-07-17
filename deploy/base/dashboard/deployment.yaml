@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: k8s-monitor-dashboard
+  name: os-monitor-dashboard
   namespace: monitoring
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: k8s-monitor-dashboard
+      app: os-monitor-dashboard
   template:
     metadata:
       labels:
-        app: k8s-monitor-dashboard
+        app: os-monitor-dashboard
     spec:
       hostAliases:
         - ip: "192.168.77.100"
           hostnames: ["registry.local.cloud"]
       containers:
         - name: dashboard
-          image: registry.local.cloud:5000/k8s-monitor/dashboard:latest
+          image: registry.local.cloud:5000/os-monitor/dashboard:latest
           ports:
             - containerPort: 80
           env:
@@ -35,11 +35,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: k8s-monitor-dashboard
+  name: os-monitor-dashboard
   namespace: monitoring
 spec:
   selector:
-    app: k8s-monitor-dashboard
+    app: os-monitor-dashboard
   ports:
     - port: 80
       targetPort: 80

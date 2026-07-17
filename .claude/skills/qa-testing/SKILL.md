@@ -31,7 +31,7 @@ ruff는 flake8 + isort + pyupgrade를 통합한다. `--fix`로 import 정렬, �
 
 ## L2: 단위 테스트 패턴
 
-외부 의존성(Prometheus, Loki, TimescaleDB, K8s API)을 mock으로 대체한다.
+외부 의존성(Prometheus, Loki, TimescaleDB)을 mock으로 대체한다.
 
 ```python
 # tests/unit/test_os_collector.py
@@ -73,8 +73,7 @@ def test_linear_regression_increasing_trend():
 # tests/unit/test_crisis_catalog.py
 def test_crisis_catalog_has_all_types():
     from analysis.crisis_catalog import CRISIS_CATALOG
-    expected = {"HIGH_CPU", "MEMORY_EXHAUSTION", "DISK_FULL", "HIGH_LOAD",
-                "CRASHLOOP_BACKOFF", "NODE_NOT_READY", "OOM_KILLED"}
+    expected = {"HIGH_CPU", "MEMORY_EXHAUSTION", "DISK_FULL", "HIGH_LOAD"}
     assert set(CRISIS_CATALOG.keys()) == expected
     for crisis_type, data in CRISIS_CATALOG.items():
         assert "description" in data

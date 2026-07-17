@@ -6,7 +6,7 @@ on:
 
 env:
   HARBOR_REGISTRY: harbor.osci.kr
-  IMAGE_PREFIX:    harbor.osci.kr/k8s-monitor
+  IMAGE_PREFIX:    harbor.osci.kr/os-monitor
 
 jobs:
   build-and-push:

@@ -32,9 +32,6 @@ GET  /api/v1/metrics/os/{cluster_name}/{node_name}
      ?metric=cpu_usage_ratio&start=2026-06-19T00:00:00Z&end=2026-06-20T00:00:00Z&interval=1h
      → OS 메트릭 시계열
 
-GET  /api/v1/metrics/k8s/{cluster_name}/{node_name}
-     → K8s 메트릭 시계열
-
 GET  /api/v1/metrics/summary/{cluster_name}
      ?period=daily|weekly|monthly|yearly
      → 클러스터 전체 메트릭 요약 (최대 대비 비율 포함)
@@ -107,8 +104,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
-    title="K8s OS Monitor API",
-    description="Kubernetes 클러스터 OS 모니터링 시스템",
+    title="OS Monitor API",
+    description="Linux Base OS 모니터링 시스템",
     version="1.0.0"
 )
 

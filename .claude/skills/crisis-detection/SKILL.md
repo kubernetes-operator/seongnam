@@ -1,7 +1,7 @@
 ---
 name: crisis-detection
 description: |
-  OS 및 Kubernetes 메트릭 임계값 초과를 감지하고, 로그를 분석하여 위기 원인을 진단하며, 해결 방안과 공식 문서 링크를 제시하는 Python 코드를 구현한다. '위기 감지', '임계값 초과', '알람', '로그 분석', '해결 방안', '위기 관리', 'Crisis Management', 'OOM', 'CrashLoop' 관련 구현 시 반드시 이 스킬을 사용할 것.
+  OS 메트릭 임계값 초과를 감지하고, 로그를 분석하여 위기 원인을 진단하며, 해결 방안과 공식 문서 링크를 제시하는 Python 코드를 구현한다. '위기 감지', '임계값 초과', '알람', '로그 분석', '해결 방안', '위기 관리', 'Crisis Management', 'OOM' 관련 구현 시 반드시 이 스킬을 사용할 것.
 ---
 
 # Crisis Detection 스킬
@@ -20,16 +20,11 @@ CRISIS_CATALOG = {
         "immediate_actions": [
             "과도한 CPU를 사용하는 프로세스를 확인하고 종료 또는 재시작",
             "nice -n 10 <pid> 로 우선순위를 낮춰 다른 프로세스 영향 최소화",
-            "K8s: kubectl top pods --all-namespaces | sort -k3 -rn | head -10",
         ],
         "references": [
             {
                 "title": "Linux CPU 성능 최적화",
                 "url": "https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html"
-            },
-            {
-                "title": "Kubernetes CPU 리소스 관리",
-                "url": "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"
             }
         ],
     },
@@ -48,17 +43,11 @@ CRISIS_CATALOG = {
         "immediate_actions": [
             "메모리 누수 프로세스를 확인하고 재시작: systemctl restart <service>",
             "페이지 캐시 해제 (운영 영향 최소): sync && echo 1 > /proc/sys/vm/drop_caches",
-            "K8s: kubectl describe pod <pod> | grep -A5 OOM",
-            "K8s memory limit 증가: kubectl set resources deployment <name> --limits memory=2Gi",
         ],
         "references": [
             {
                 "title": "Linux Kernel OOM Killer",
                 "url": "https://www.kernel.org/doc/html/latest/admin-guide/mm/concepts.html"
-            },
-            {
-                "title": "Kubernetes OOM 문제 해결",
-                "url": "https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/"
             }
         ],
     },
@@ -72,17 +61,12 @@ CRISIS_CATALOG = {
         "immediate_actions": [
             "오래된 로그 삭제: journalctl --vacuum-size=500M",
             "Docker 정리: docker system prune -f (사용하지 않는 이미지/컨테이너 삭제)",
-            "K8s: kubectl delete pod --field-selector=status.phase=Failed --all-namespaces",
             "임시 파일 삭제: find /tmp -type f -mtime +7 -delete",
         ],
         "references": [
             {
                 "title": "Linux 디스크 관리",
                 "url": "https://man7.org/linux/man-pages/man8/fdisk.8.html"
-            },
-            {
-                "title": "Kubernetes 노드 디스크 압력",
-                "url": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
             }
         ],
     },
@@ -99,56 +83,6 @@ CRISIS_CATALOG = {
         ],
         "references": [
             {"title": "Linux Load Average 이해", "url": "https://www.brendangregg.com/blog/2017-08-08/linux-load-averages.html"},
-        ],
-    },
-    "CRASHLOOP_BACKOFF": {
-        "description": "Kubernetes 파드가 반복 재시작(CrashLoopBackOff) 상태입니다.",
-        "diagnosis_steps": [
-            "kubectl logs <pod> --previous (이전 컨테이너 로그)",
-            "kubectl describe pod <pod> (Events 섹션 확인)",
-            "kubectl get events --field-selector involvedObject.name=<pod>",
-        ],
-        "immediate_actions": [
-            "이전 로그에서 오류 원인 분석",
-            "환경변수/ConfigMap/Secret 설정 확인",
-            "이미지 태그 및 레지스트리 접근 확인",
-            "리소스 제한 초과 여부: kubectl top pod <pod>",
-        ],
-        "references": [
-            {"title": "Kubernetes Pod 라이프사이클", "url": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"},
-            {"title": "CrashLoopBackOff 해결 가이드", "url": "https://kubernetes.io/docs/tasks/debug/debug-application/debug-running-pod/"},
-        ],
-    },
-    "NODE_NOT_READY": {
-        "description": "Kubernetes 노드가 NotReady 상태입니다.",
-        "diagnosis_steps": [
-            "kubectl describe node <node> (Conditions, Events 확인)",
-            "ssh <node> 'systemctl status kubelet'",
-            "ssh <node> 'journalctl -u kubelet --since \"10 min ago\"'",
-        ],
-        "immediate_actions": [
-            "kubelet 재시작: systemctl restart kubelet",
-            "노드 네트워크 연결 확인: ping <api-server-ip>",
-            "디스크 압력 확인: df -h (ImageFS, NodeFS)",
-        ],
-        "references": [
-            {"title": "Kubernetes 노드 문제 해결", "url": "https://kubernetes.io/docs/tasks/debug/debug-cluster/"},
-        ],
-    },
-    "OOM_KILLED": {
-        "description": "컨테이너가 메모리 한계 초과로 종료(OOMKilled)되었습니다.",
-        "diagnosis_steps": [
-            "kubectl describe pod <pod> | grep -A5 'Last State'",
-            "kubectl get events | grep OOM",
-            "dmesg | grep oom | tail -10",
-        ],
-        "immediate_actions": [
-            "memory limit을 현재 사용량의 1.5배 이상으로 증가",
-            "애플리케이션 메모리 프로파일링 수행",
-            "JVM 사용 시: JAVA_OPTS '-Xmx' 값 조정",
-        ],
-        "references": [
-            {"title": "Kubernetes 메모리 리소스 관리", "url": "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"},
         ],
     },
 }
@@ -172,10 +106,6 @@ class CrisisEngine:
             "swap_usage_ratio":   {"warning": 50, "critical": 80},
             "disk_usage_ratio":   {"warning": 75, "critical": 90},
             "load_per_core":      {"warning": 1.5, "critical": 2.0},
-        },
-        "k8s": {
-            "cpu_usage_ratio":    {"warning": 75, "critical": 90},
-            "memory_usage_ratio": {"warning": 80, "critical": 90},
         },
     }
 

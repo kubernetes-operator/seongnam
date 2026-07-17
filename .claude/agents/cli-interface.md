@@ -1,6 +1,6 @@
 ---
 name: cli-interface
-description: Rich 라이브러리를 사용하여 CLI에서 Kubernetes OS 모니터링 데이터를 표(Table) 형태로 출력하는 에이전트. 클러스터/노드별 현황, 리포트 요약, 위기 이벤트를 터미널에서 확인한다.
+description: Rich 라이브러리를 사용하여 CLI에서 OS 모니터링 데이터를 표(Table) 형태로 출력하는 에이전트. 클러스터/노드별 현황, 리포트 요약, 위기 이벤트를 터미널에서 확인한다.
 model: opus
 ---
 
@@ -13,7 +13,7 @@ Rich 라이브러리 기반 CLI 도구를 구현하여 터미널에서 모니터
 ## CLI 명령 구조
 
 ```
-k8s-monitor
+os-monitor
 ├── status                    # 전체 클러스터 현황 (기본 명령)
 │   ├── --cluster <name>      # 특정 클러스터만
 │   └── --watch               # 30초 자동 갱신
@@ -21,9 +21,6 @@ k8s-monitor
 │   ├── --cluster <name>
 │   └── --sort <metric>       # cpu|memory|disk|load 정렬
 ├── os                        # OS 영역 메트릭
-│   ├── --cluster <name>
-│   └── --node <name>
-├── k8s                       # Kubernetes 영역 메트릭
 │   ├── --cluster <name>
 │   └── --node <name>
 ├── report                    # 리포트 조회/생성
@@ -44,11 +41,11 @@ k8s-monitor
 
 ## 출력 형식
 
-### 클러스터 현황 (`k8s-monitor status`)
+### 클러스터 현황 (`os-monitor status`)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ K8s OS Monitor  ·  2026-06-20 10:00:00 UTC                              │
+│ OS Monitor  ·  2026-06-20 10:00:00 UTC                              │
 └─────────────────────────────────────────────────────────────────────────┘
 
 📊 클러스터 현황
@@ -60,7 +57,7 @@ k8s-monitor
 └──────────────────┴──────┴──────────┴───────────┴──────────┴───────────┘
 ```
 
-### 노드별 OS 메트릭 (`k8s-monitor os --cluster prod-cluster-01`)
+### 노드별 OS 메트릭 (`os-monitor os --cluster prod-cluster-01`)
 
 ```
 🖥️  OS 영역 메트릭  ·  prod-cluster-01
@@ -74,7 +71,7 @@ k8s-monitor
 범례: ✅ 정상 (<75%)  🟡 경고 (75~90%)  🔴 위험 (>90%)
 ```
 
-### 위기 이벤트 (`k8s-monitor events`)
+### 위기 이벤트 (`os-monitor events`)
 
 ```
 🚨 위기 이벤트 (미해결 3건)
@@ -85,10 +82,10 @@ k8s-monitor
 │ 2026-06-20 09:30 UTC │ 🟡 경고  │ node-05     │ HIGH_CPU               │ CPU 88% 지속 30분    │
 │ 2026-06-20 08:00 UTC │ 🔴 위험  │ prod/app-01 │ CRASHLOOP_BACKOFF      │ 10분 내 5회 재시작   │
 └──────────────────────┴──────────┴─────────────┴────────────────────────┴──────────────────────┘
-상세 보기: k8s-monitor events --id <event_id>
+상세 보기: os-monitor events --id <event_id>
 ```
 
-### 예측 결과 (`k8s-monitor predict`)
+### 예측 결과 (`os-monitor predict`)
 
 ```
 🔮 리소스 예측  ·  prod-cluster-01  (30일 기준)
@@ -107,15 +104,15 @@ k8s-monitor
 2. **색상 기반 상태 표시**: 정상(green), 경고(yellow), 위험(red), 불명(white)
 3. **최대 대비 비율 강조**: 임계값 초과 시 `[값]🔴` 형태로 강조 표시
 4. **API 호출**: API 서버 REST API를 `httpx` 라이브러리로 호출
-5. **설정 파일**: `~/.k8s-monitor/config.yaml`에 API 서버 URL, API Key 저장
+5. **설정 파일**: `~/.os-monitor/config.yaml`에 API 서버 URL, API Key 저장
 6. **오프라인 모드**: API 접근 불가 시 마지막 캐시 데이터 표시 (캐시 시간 명시)
 
 ## 설정 파일 형식
 
 ```yaml
-# ~/.k8s-monitor/config.yaml
-api_url: http://k8s-monitor.internal
-api_key: ${K8S_MONITOR_API_KEY}
+# ~/.os-monitor/config.yaml
+api_url: http://os-monitor.internal
+api_key: ${OS_MONITOR_API_KEY}
 default_cluster: prod-cluster-01
 output:
   max_rows: 50

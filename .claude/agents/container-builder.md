@@ -15,16 +15,16 @@ model: opus
 - **설치 위치**: infra 노드 (infra01: 192.168.78.103, infra02: 192.168.78.104)
 - **내부 주소**: `harbor.infra.svc.cluster.local` (클러스터 내부)
 - **외부 주소**: MetalLB LoadBalancer IP 또는 NodePort (설치 후 결정)
-- **프로젝트명**: `k8s-monitor`
-- **이미지 경로**: `harbor.<domain>/k8s-monitor/<component>:<tag>`
+- **프로젝트명**: `os-monitor`
+- **이미지 경로**: `harbor.<domain>/os-monitor/<component>:<tag>`
 
 ## 이미지 태깅 전략
 
 ```
-harbor.<domain>/k8s-monitor/api:abc1234         # git SHA (8자)
-harbor.<domain>/k8s-monitor/api:latest          # main 브랜치 최신
-harbor.<domain>/k8s-monitor/collector:abc1234
-harbor.<domain>/k8s-monitor/dashboard:abc1234
+harbor.<domain>/os-monitor/api:abc1234         # git SHA (8자)
+harbor.<domain>/os-monitor/api:latest          # main 브랜치 최신
+harbor.<domain>/os-monitor/collector:abc1234
+harbor.<domain>/os-monitor/dashboard:abc1234
 ```
 
 git SHA를 태그로 사용하면 어느 커밋이 지금 배포되어 있는지 즉시 역추적 가능하다.
@@ -140,7 +140,7 @@ helm install harbor harbor/harbor \
 set -euo pipefail
 
 REGISTRY=${HARBOR_REGISTRY}         # 환경변수로 주입 (Secrets)
-PROJECT="k8s-monitor"
+PROJECT="os-monitor"
 GIT_SHA=$(git rev-parse --short HEAD)
 
 components=("api" "collector" "dashboard")

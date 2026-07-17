@@ -32,13 +32,12 @@ async def upsert_cluster_node(
         await conn.execute(
             """
             INSERT INTO cluster_nodes
-                (cluster_name, node_name, node_ip, role, os_distro,
+                (cluster_name, node_name, node_ip, os_distro,
                  kernel_version, cpu_cores, memory_total_bytes, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
             ON CONFLICT (cluster_name, node_name)
             DO UPDATE SET
                 node_ip            = EXCLUDED.node_ip,
-                role               = COALESCE(EXCLUDED.role,               cluster_nodes.role),
                 os_distro          = COALESCE(EXCLUDED.os_distro,          cluster_nodes.os_distro),
                 kernel_version     = COALESCE(EXCLUDED.kernel_version,     cluster_nodes.kernel_version),
                 cpu_cores          = COALESCE(EXCLUDED.cpu_cores,          cluster_nodes.cpu_cores),
@@ -48,7 +47,6 @@ async def upsert_cluster_node(
             cluster_name,
             node_name,
             node_ip or "",
-            kwargs.get("role"),
             kwargs.get("os_distro"),
             kwargs.get("kernel_version"),
             kwargs.get("cpu_cores"),
@@ -102,67 +100,6 @@ async def insert_os_metrics(pool, records: list[dict]) -> int:
 
     async with pool.acquire() as conn:
         await conn.copy_records_to_table("os_metrics", records=rows, columns=columns)
-    return len(rows)
-
-
-async def insert_k8s_metrics(pool, records: list[dict]) -> int:
-    """K8s 메트릭을 배치 삽입한다.
-
-    레코드는 플랫 구조(k8s_service.py 방식)와 중첩 구조(allocatable/requested/used)
-    모두 지원한다.
-    """
-    if not records:
-        return 0
-
-    columns = [
-        "time", "cluster_name", "node_name", "node_status",
-        "cpu_allocatable", "cpu_requested", "cpu_used", "cpu_request_ratio", "cpu_usage_ratio",
-        "memory_allocatable_bytes", "memory_requested_bytes", "memory_used_bytes",
-        "memory_request_ratio", "memory_usage_ratio",
-        "pods_running", "pods_pending", "pods_failed", "pods_crash_loop",
-        "actual_usage_available",
-    ]
-
-    rows = []
-    for r in records:
-        # 플랫 구조 우선, 없으면 중첩 구조에서 읽기
-        alloc = r.get("allocatable", {}) or {}
-        req = r.get("requested", {}) or {}
-        used = r.get("used") or {}
-
-        # 플랫 키가 있으면 직접 사용 (k8s_service.py 형식)
-        cpu_alloc = r.get("cpu_allocatable") if "cpu_allocatable" in r else alloc.get("cpu_cores")
-        cpu_req = r.get("cpu_requested") if "cpu_requested" in r else req.get("cpu_cores")
-        cpu_used = r.get("cpu_used") if "cpu_used" in r else used.get("cpu_cores")
-        mem_alloc = r.get("memory_allocatable_bytes") if "memory_allocatable_bytes" in r else alloc.get("memory_bytes")
-        mem_req = r.get("memory_requested_bytes") if "memory_requested_bytes" in r else req.get("memory_bytes")
-        mem_used = r.get("memory_used_bytes") if "memory_used_bytes" in r else used.get("memory_bytes")
-        actual = r.get("actual_usage_available", bool(used))
-
-        rows.append((
-            r.get("time") or datetime.now(timezone.utc),
-            r.get("cluster_name", ""),
-            r.get("node_name") or r.get("name", ""),
-            r.get("node_status") or r.get("status", "Unknown"),
-            cpu_alloc,
-            cpu_req,
-            cpu_used,
-            r.get("cpu_request_ratio"),
-            r.get("cpu_usage_ratio"),
-            mem_alloc,
-            mem_req,
-            mem_used,
-            r.get("memory_request_ratio"),
-            r.get("memory_usage_ratio"),
-            r.get("pods_running"),
-            r.get("pods_pending"),
-            r.get("pods_failed"),
-            r.get("pods_crash_loop", 0),
-            actual,
-        ))
-
-    async with pool.acquire() as conn:
-        await conn.copy_records_to_table("k8s_metrics", records=rows, columns=columns)
     return len(rows)
 
 
@@ -275,23 +212,6 @@ async def query_latest_metrics(pool, cluster_name: str) -> list[dict]:
             cpu_usage_ratio, memory_usage_ratio, disk_usage_ratio,
             load1, load_per_core, net_rx_bytes_per_sec, net_tx_bytes_per_sec
         FROM os_metrics
-        WHERE cluster_name = $1
-          AND time > NOW() - INTERVAL '10 minutes'
-        ORDER BY node_name, time DESC
-    """
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(sql, cluster_name)
-    return [dict(row) for row in rows]
-
-
-async def query_latest_k8s_metrics(pool, cluster_name: str) -> list[dict]:
-    sql = """
-        SELECT DISTINCT ON (node_name)
-            node_name, time, node_status,
-            cpu_allocatable, cpu_used, cpu_usage_ratio,
-            memory_allocatable_bytes, memory_used_bytes, memory_usage_ratio,
-            pods_running, pods_pending, pods_failed, pods_crash_loop
-        FROM k8s_metrics
         WHERE cluster_name = $1
           AND time > NOW() - INTERVAL '10 minutes'
         ORDER BY node_name, time DESC

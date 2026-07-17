@@ -53,30 +53,6 @@ CREATE TABLE IF NOT EXISTS os_metrics (
 );
 SELECT create_hypertable('os_metrics', 'time', if_not_exists => TRUE);
 
--- K8s 메트릭 (hypertable)
-CREATE TABLE IF NOT EXISTS k8s_metrics (
-    time                      TIMESTAMPTZ NOT NULL,
-    cluster_name              TEXT NOT NULL,
-    node_name                 TEXT NOT NULL,
-    node_status               TEXT,
-    cpu_allocatable           DOUBLE PRECISION,
-    cpu_requested             DOUBLE PRECISION,
-    cpu_used                  DOUBLE PRECISION,
-    cpu_request_ratio         DOUBLE PRECISION,
-    cpu_usage_ratio           DOUBLE PRECISION,
-    memory_allocatable_bytes  BIGINT,
-    memory_requested_bytes    BIGINT,
-    memory_used_bytes         BIGINT,
-    memory_request_ratio      DOUBLE PRECISION,
-    memory_usage_ratio        DOUBLE PRECISION,
-    pods_running              INTEGER,
-    pods_pending              INTEGER,
-    pods_failed               INTEGER,
-    pods_crash_loop           INTEGER,
-    actual_usage_available    BOOLEAN DEFAULT FALSE
-);
-SELECT create_hypertable('k8s_metrics', 'time', if_not_exists => TRUE);
-
 -- 이벤트/알림
 CREATE TABLE IF NOT EXISTS events (
     id           SERIAL PRIMARY KEY,
@@ -293,7 +269,7 @@ async def query_top_nodes(
 ## 환경변수
 
 ```
-DATABASE_URL=postgresql://user:pass@timescaledb:5432/k8s_monitor
+DATABASE_URL=postgresql://user:pass@timescaledb:5432/os_monitor
 ```
 
 ## 의존성

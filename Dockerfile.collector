@@ -19,7 +19,7 @@ USER appuser
 ENV PYTHONPATH=/app/src \
     PYTHONUNBUFFERED=1
 
-# COLLECTOR_MODE: os | k8s | predict | report
+# COLLECTOR_MODE: os | predict | report
 ENV COLLECTOR_MODE=os
 
 CMD ["sh", "-c", "python -m collector.${COLLECTOR_MODE}_service"]

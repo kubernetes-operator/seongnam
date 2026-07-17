@@ -138,13 +138,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build API image (no push)
-        run: docker build -f Dockerfile.api -t k8s-monitor/api:check .
+        run: docker build -f Dockerfile.api -t os-monitor/api:check .
 
       - name: Build Collector image (no push)
-        run: docker build -f Dockerfile.collector -t k8s-monitor/collector:check .
+        run: docker build -f Dockerfile.collector -t os-monitor/collector:check .
 
       - name: Build Dashboard image (no push)
-        run: docker build -f Dockerfile.dashboard -t k8s-monitor/dashboard:check .
+        run: docker build -f Dockerfile.dashboard -t os-monitor/dashboard:check .
 ```
 
 ## CD 워크플로우 (.github/workflows/cd.yml)
@@ -193,10 +193,10 @@ jobs:
           file: Dockerfile.api
           push: true
           tags: |
-            ${{ secrets.HARBOR_REGISTRY }}/k8s-monitor/api:${{ steps.meta.outputs.sha }}
-            ${{ secrets.HARBOR_REGISTRY }}/k8s-monitor/api:latest
-          cache-from: type=registry,ref=${{ secrets.HARBOR_REGISTRY }}/k8s-monitor/api:cache
-          cache-to: type=registry,ref=${{ secrets.HARBOR_REGISTRY }}/k8s-monitor/api:cache,mode=max
+            ${{ secrets.HARBOR_REGISTRY }}/os-monitor/api:${{ steps.meta.outputs.sha }}
+            ${{ secrets.HARBOR_REGISTRY }}/os-monitor/api:latest
+          cache-from: type=registry,ref=${{ secrets.HARBOR_REGISTRY }}/os-monitor/api:cache
+          cache-to: type=registry,ref=${{ secrets.HARBOR_REGISTRY }}/os-monitor/api:cache,mode=max
 
       - name: Build and push Collector image
         uses: docker/build-push-action@v5
@@ -205,8 +205,8 @@ jobs:
           file: Dockerfile.collector
           push: true
           tags: |
-            ${{ secrets.HARBOR_REGISTRY }}/k8s-monitor/collector:${{ steps.meta.outputs.sha }}
-            ${{ secrets.HARBOR_REGISTRY }}/k8s-monitor/collector:latest
+            ${{ secrets.HARBOR_REGISTRY }}/os-monitor/collector:${{ steps.meta.outputs.sha }}
+            ${{ secrets.HARBOR_REGISTRY }}/os-monitor/collector:latest
 
       - name: Build and push Dashboard image
         uses: docker/build-push-action@v5
@@ -215,13 +215,13 @@ jobs:
           file: Dockerfile.dashboard
           push: true
           tags: |
-            ${{ secrets.HARBOR_REGISTRY }}/k8s-monitor/dashboard:${{ steps.meta.outputs.sha }}
-            ${{ secrets.HARBOR_REGISTRY }}/k8s-monitor/dashboard:latest
+            ${{ secrets.HARBOR_REGISTRY }}/os-monitor/dashboard:${{ steps.meta.outputs.sha }}
+            ${{ secrets.HARBOR_REGISTRY }}/os-monitor/dashboard:latest
 
       - name: Trivy security scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ secrets.HARBOR_REGISTRY }}/k8s-monitor/api:${{ steps.meta.outputs.sha }}
+          image-ref: ${{ secrets.HARBOR_REGISTRY }}/os-monitor/api:${{ steps.meta.outputs.sha }}
           severity: HIGH,CRITICAL
           exit-code: 1
 
@@ -245,9 +245,9 @@ jobs:
 
           # API 이미지 태그 업데이트
           kustomize edit set image \
-            k8s-monitor/api=${REGISTRY}/k8s-monitor/api:${SHA} \
-            k8s-monitor/collector=${REGISTRY}/k8s-monitor/collector:${SHA} \
-            k8s-monitor/dashboard=${REGISTRY}/k8s-monitor/dashboard:${SHA}
+            os-monitor/api=${REGISTRY}/os-monitor/api:${SHA} \
+            os-monitor/collector=${REGISTRY}/os-monitor/collector:${SHA} \
+            os-monitor/dashboard=${REGISTRY}/os-monitor/dashboard:${SHA}
 
       - name: Commit and push tag update
         env:

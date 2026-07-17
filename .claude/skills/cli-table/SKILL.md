@@ -1,7 +1,7 @@
 ---
 name: cli-table
 description: |
-  Rich 라이브러리를 사용하여 Kubernetes OS 모니터링 데이터를 CLI 터미널 표(Table) 형태로 출력하는 Python 코드를 구현한다. 색상 기반 상태 표시, 최대 대비 비율 강조, 자동 갱신, API 연동을 포함한다. 'CLI', '터미널 출력', 'Rich 테이블', '표 형태', 'k8s-monitor CLI', 'kubectl 대시보드' 관련 구현 시 반드시 이 스킬을 사용할 것.
+  Rich 라이브러리를 사용하여 OS 모니터링 데이터를 CLI 터미널 표(Table) 형태로 출력하는 Python 코드를 구현한다. 색상 기반 상태 표시, 최대 대비 비율 강조, 자동 갱신, API 연동을 포함한다. 'CLI', '터미널 출력', 'Rich 테이블', '표 형태', 'os-monitor CLI' 관련 구현 시 반드시 이 스킬을 사용할 것.
 ---
 
 # CLI Table 스킬
@@ -18,20 +18,20 @@ from rich.live import Live
 from rich.progress import Progress
 import httpx, time
 
-app = typer.Typer(help="K8s OS 모니터링 CLI 도구")
+app = typer.Typer(help="OS 모니터링 CLI 도구")
 console = Console()
 
 # API 클라이언트 설정
 def get_api_client() -> httpx.Client:
     import yaml, os
-    config_path = os.path.expanduser("~/.k8s-monitor/config.yaml")
+    config_path = os.path.expanduser("~/.os-monitor/config.yaml")
     if os.path.exists(config_path):
         with open(config_path) as f:
             cfg = yaml.safe_load(f)
     else:
         cfg = {}
-    api_url = cfg.get("api_url", os.environ.get("K8S_MONITOR_URL", "http://localhost:8000"))
-    api_key = cfg.get("api_key", os.environ.get("K8S_MONITOR_API_KEY", ""))
+    api_url = cfg.get("api_url", os.environ.get("OS_MONITOR_URL", "http://localhost:8000"))
+    api_key = cfg.get("api_key", os.environ.get("OS_MONITOR_API_KEY", ""))
     return httpx.Client(
         base_url=api_url,
         headers={"Authorization": f"Bearer {api_key}"},
@@ -89,7 +89,7 @@ def status(
             clusters = resp.json()["data"]
 
         table = Table(
-            title="K8s OS Monitor — 클러스터 현황",
+            title="OS Monitor — 클러스터 현황",
             show_header=True,
             header_style="bold cyan",
             border_style="blue",
@@ -132,13 +132,12 @@ def status(
         console.print(render())
 ```
 
-### nodes 명령 — 노드별 OS/K8s 메트릭
+### nodes 명령 — 노드별 OS 메트릭
 
 ```python
 @app.command()
 def nodes(
     cluster: str = typer.Option(..., "--cluster", "-c"),
-    area: str = typer.Option("os", "--area", "-a", help="os | k8s | all"),
     sort: str = typer.Option("cpu", "--sort", "-s", help="cpu | memory | disk | load"),
 ):
     """노드별 상세 메트릭을 표로 출력한다."""
@@ -154,34 +153,33 @@ def nodes(
     }
     data.sort(key=lambda r: r.get(sort_keys.get(sort, "cpu_avg"), 0), reverse=True)
 
-    if area in ("os", "all"):
-        table = Table(
-            title=f"[bold]🖥️  OS 영역[/bold] · {cluster}",
-            header_style="bold cyan",
-            border_style="blue",
-        )
-        table.add_column("노드", style="bold", min_width=12)
-        table.add_column("CPU 평균", justify="right")
-        table.add_column("CPU 최대", justify="right")
-        table.add_column("MEM 평균", justify="right")
-        table.add_column("MEM 최대", justify="right")
-        table.add_column("DISK 평균", justify="right")
-        table.add_column("Load Avg (1m)", justify="right")
+    table = Table(
+        title=f"[bold]🖥️  OS 영역[/bold] · {cluster}",
+        header_style="bold cyan",
+        border_style="blue",
+    )
+    table.add_column("노드", style="bold", min_width=12)
+    table.add_column("CPU 평균", justify="right")
+    table.add_column("CPU 최대", justify="right")
+    table.add_column("MEM 평균", justify="right")
+    table.add_column("MEM 최대", justify="right")
+    table.add_column("DISK 평균", justify="right")
+    table.add_column("Load Avg (1m)", justify="right")
 
-        for row in data:
-            table.add_row(
-                row["node_name"],
-                ratio_display(row.get("cpu_avg")),
-                ratio_display(row.get("cpu_max")),
-                ratio_display(row.get("mem_avg")),
-                ratio_display(row.get("mem_max")),
-                ratio_display(row.get("disk_avg")),
-                f"{row.get('load_avg', 0):.2f}" if row.get("load_avg") else "N/A",
-            )
-        console.print(table)
+    for row in data:
+        table.add_row(
+            row["node_name"],
+            ratio_display(row.get("cpu_avg")),
+            ratio_display(row.get("cpu_max")),
+            ratio_display(row.get("mem_avg")),
+            ratio_display(row.get("mem_max")),
+            ratio_display(row.get("disk_avg")),
+            f"{row.get('load_avg', 0):.2f}" if row.get("load_avg") else "N/A",
+        )
+    console.print(table)
 
     console.print(f"\n[dim]범례: ✅ 정상 (<75%)  🟡 경고 (75~90%)  🔴 위험 (>90%)[/dim]")
-    console.print(f"[dim]정렬 기준: {sort} | 갱신: k8s-monitor nodes --cluster {cluster} --watch[/dim]")
+    console.print(f"[dim]정렬 기준: {sort} | 갱신: os-monitor nodes --cluster {cluster} --watch[/dim]")
 ```
 
 ### events 명령 — 위기 이벤트 목록
@@ -232,7 +230,7 @@ def events(
         )
 
     console.print(table)
-    console.print("[dim]상세: k8s-monitor events --id <event_id>[/dim]")
+    console.print("[dim]상세: os-monitor events --id <event_id>[/dim]")
 ```
 
 ### predict 명령 — 예측 결과
@@ -305,7 +303,7 @@ pyyaml>=6.0
 ## 설치
 
 ```bash
-pip install k8s-monitor-cli
+pip install os-monitor-cli
 # 또는
 pip install -e .
 ```

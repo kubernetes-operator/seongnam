@@ -96,7 +96,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 # K8s ConfigMap으로 주입된 환경변수를 env.js에 기록
 # API_BASE_URL과 API_KEY는 Deployment의 env 블록에서 주입
 cat > /usr/share/nginx/html/env.js << ENVEOF
-window.ENV_API_URL = '${API_BASE_URL:-http://k8s-monitor-api:8000}';
+window.ENV_API_URL = '${API_BASE_URL:-http://os-monitor-api:8000}';
 ENVEOF
 exec nginx -g 'daemon off;'
 ```
@@ -143,8 +143,8 @@ _workspace/
 ## 이미지 태깅 전략
 
 ```
-harbor.<domain>/k8s-monitor/api:abc1234     # git SHA (8자) — 배포 커밋 역추적
-harbor.<domain>/k8s-monitor/api:latest      # main 브랜치 최신
+harbor.<domain>/os-monitor/api:abc1234     # git SHA (8자) — 배포 커밋 역추적
+harbor.<domain>/os-monitor/api:latest      # main 브랜치 최신
 ```
 
 git SHA를 태그로 쓰면 `kubectl get deployment -o jsonpath=...`로 배포된 커밋을 즉시 확인할 수 있다.
@@ -159,7 +159,7 @@ git SHA를 태그로 쓰면 `kubectl get deployment -o jsonpath=...`로 배포�
 set -euo pipefail
 
 REGISTRY=${HARBOR_REGISTRY}    # GitHub Secret에서 주입
-PROJECT="k8s-monitor"
+PROJECT="os-monitor"
 GIT_SHA=$(git rev-parse --short HEAD)
 
 declare -A DOCKERFILES=(

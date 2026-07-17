@@ -1,17 +1,17 @@
-# K8s OS Monitor
+# OS Monitor
 
-Kubernetes 클러스터의 Base OS 및 K8s 상태를 수집·저장·분석·예측·시각화하는 통합 모니터링 플랫폼.
+Kubernetes 클러스터의 Base OS 상태를 수집·저장·분석·예측·시각화하는 통합 모니터링 플랫폼.
 
 ## 아키텍처
 
 ```
 Node Exporter/psutil ─┐
-kubernetes-client   ──┼─→ Collector ─→ TimescaleDB ─→ FastAPI ─┬─→ CLI (Rich/Typer)
-Loki (LogQL)         ─┘                    ↑                  ├─→ Web Dashboard (Chart.js)
-                                     Crisis / Predictor         └─→ Reports (HTML/PDF/JSON)
+Loki (LogQL)         ─┴─→ Collector ─→ TimescaleDB ─→ FastAPI ─┬─→ CLI (Rich/Typer)
+                                    ↑                           ├─→ Web Dashboard (Chart.js)
+                             Crisis / Predictor                 └─→ Reports (HTML/PDF/JSON)
 ```
 
-- **수집**: OS 메트릭은 Node Exporter(Prometheus) 우선 조회, 부족한 항목(inode, zombie process 등)은 SSH로 보완. K8s 상태는 kubernetes-client-python으로 수집.
+- **수집**: OS 메트릭은 Node Exporter(Prometheus) 우선 조회, 부족한 항목(inode, zombie process 등)은 SSH로 보완.
 - **저장**: TimescaleDB(PostgreSQL)에 시계열 적재, hourly 연속 집계(Continuous Aggregate) 사용.
 - **분석**: 임계값 기반 위기 감지(`crisis_engine`) + Loki 로그 연계 진단, 선형회귀/이동평균 기반 예측(`predictor`).
 - **제공**: FastAPI REST API, Rich 기반 CLI, Chart.js 웹 대시보드, 일/주/월/연 리포트.
@@ -21,7 +21,7 @@ Loki (LogQL)         ─┘                    ↑                  ├─→ We
 
 ```
 src/
-  collector/    OS(psutil/SSH) + K8s(kubernetes-client) 수집기
+  collector/    OS(psutil/SSH) 수집기
   db/           TimescaleDB 스키마, 마이그레이션, 커넥션 풀, 쿼리
   analysis/     위기 감지(crisis_engine/crisis_catalog), 예측(predictor/predict_service)
   api/          FastAPI 앱, 라우터(clusters/metrics/events/reports/predictions)
@@ -32,7 +32,6 @@ tests/
   integration/  TimescaleDB, Prometheus 연동 테스트
 dashboard/      Chart.js + Bootstrap 5 정적 웹 대시보드
 deploy/         Kustomize base/overlays, ArgoCD Application, nginx 설정
-k8s/            수집기 Deployment, RBAC
 .github/workflows/  CI(lint/test/build), CD(Harbor push + GitOps 태그 업데이트)
 ```
 
@@ -41,7 +40,7 @@ k8s/            수집기 Deployment, RBAC
 - **언어/런타임**: Python 3.11+
 - **API**: FastAPI, uvicorn, slowapi(rate limiting)
 - **DB**: TimescaleDB(PostgreSQL), asyncpg
-- **수집**: kubernetes / kubernetes-asyncio, aiohttp(Prometheus), asyncssh(SSH 보완 수집)
+- **수집**: aiohttp(Prometheus), asyncssh(SSH 보완 수집)
 - **CLI**: Typer, Rich
 - **분석**: numpy
 - **대시보드**: Chart.js, Bootstrap 5, Vanilla JS (빌드 도구 없음)
@@ -55,7 +54,7 @@ k8s/            수집기 Deployment, RBAC
 | Prefix | 설명 |
 |---|---|
 | `/api/v1/clusters` | 클러스터 목록/상세 |
-| `/api/v1/metrics` | OS/K8s 메트릭 조회 (시계열 포함) |
+| `/api/v1/metrics` | OS 메트릭 조회 (시계열 포함) |
 | `/api/v1/events` | 위기 이벤트 조회 |
 | `/api/v1/reports` | 리포트 생성/다운로드 |
 | `/api/v1/predictions` | 예측 데이터 조회 |
@@ -68,9 +67,8 @@ k8s/            수집기 Deployment, RBAC
 `src/cli/main.py` (`monitor` 커맨드) 기준:
 
 - `status <cluster>` — 클러스터 전체 상태 요약 (색상 임계값 표시)
-- `nodes <cluster>` — 노드별 현황 (role/os_distro/kernel/cpu/mem)
+- `nodes <cluster>` — 노드별 현황 (os_distro/kernel/cpu/mem)
 - `os-metrics` — OS 메트릭 상세 조회
-- `k8s` — K8s 리소스 상태 조회
 - `top` — 리소스 사용량 상위 노드/파드
 - `events` — 위기 이벤트 목록
 - `predict` — 예측 결과 조회
@@ -117,4 +115,4 @@ kubectl apply -k deploy/overlays/prod
 
 ## 개발 하네스
 
-이 프로젝트는 `harness@harness-marketplace` 플러그인으로 구성된 전용 에이전트/스킬 세트로 개발되었다 (`.claude/agents/`, `.claude/skills/`). 모니터링 시스템 관련 작업 시 `k8s-os-monitor` 오케스트레이터 스킬이 12개 Phase(수집→저장→분석→API→CLI→대시보드→리포트→QA→컨테이너→CI/CD→GitOps)로 작업을 조율한다. 자세한 내용은 `CLAUDE.md` 참고.
+이 프로젝트는 `harness@harness-marketplace` 플러그인으로 구성된 전용 에이전트/스킬 세트로 개발되었다 (`.claude/agents/`, `.claude/skills/`). 모니터링 시스템 관련 작업 시 `os-monitor` 오케스트레이터 스킬이 12개 Phase(수집→저장→분석→API→CLI→대시보드→리포트→QA→컨테이너→CI/CD→GitOps)로 작업을 조율한다. 자세한 내용은 `CLAUDE.md` 참고.

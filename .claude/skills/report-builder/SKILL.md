@@ -1,7 +1,7 @@
 ---
 name: report-builder
 description: |
-  일간/주간/월간/연간 모니터링 리포트를 Python으로 생성한다. JSON 데이터 집계, Jinja2 HTML 템플릿, Chart.js 그래프, WeasyPrint PDF 변환을 포함한다. 클러스터/노드별, OS/K8s 영역별로 구분하며 최대 대비 비율을 시각화한다. '리포트 생성', '일간 리포트', '주간 리포트', 'HTML 리포트', 'PDF 리포트', '사용량 보고서' 관련 구현 시 반드시 이 스킬을 사용할 것.
+  일간/주간/월간/연간 모니터링 리포트를 Python으로 생성한다. JSON 데이터 집계, Jinja2 HTML 템플릿, Chart.js 그래프, WeasyPrint PDF 변환을 포함한다. 클러스터/노드별로 구분하며 최대 대비 비율을 시각화한다. '리포트 생성', '일간 리포트', '주간 리포트', 'HTML 리포트', 'PDF 리포트', '사용량 보고서' 관련 구현 시 반드시 이 스킬을 사용할 것.
 ---
 
 # Report Builder 스킬
@@ -84,7 +84,6 @@ class ReportGenerator:
         nodes = await self.db.query_cluster_nodes(cluster_name)
 
         os_data = {}
-        k8s_data = {}
         for node in nodes:
             node_name = node["node_name"]
             os_data[node_name] = {
@@ -97,14 +96,6 @@ class ReportGenerator:
                     "disk_usage_ratio", "load1"
                 ]
             }
-            k8s_data[node_name] = {
-                metric: await self.db.query_metric_timeseries(
-                    cluster_name, node_name, metric,
-                    start.isoformat(), end.isoformat(), interval,
-                    table="k8s_metrics"
-                )
-                for metric in ["cpu_usage_ratio", "memory_usage_ratio"]
-            }
 
         events = await self.db.query_events(
             cluster_name=cluster_name,
@@ -112,7 +103,7 @@ class ReportGenerator:
             end=end.isoformat()
         )
 
-        summary = self._build_summary(nodes, os_data, k8s_data, events)
+        summary = self._build_summary(nodes, os_data, events)
 
         return {
             "cluster_name": cluster_name,
@@ -121,13 +112,12 @@ class ReportGenerator:
             "interval": interval,
             "nodes": nodes,
             "os_metrics": os_data,
-            "k8s_metrics": k8s_data,
             "events": events,
             "summary": summary,
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def _build_summary(self, nodes, os_data, k8s_data, events) -> dict:
+    def _build_summary(self, nodes, os_data, events) -> dict:
         """리포트 요약 통계를 계산한다."""
         all_cpu = [
             v["avg"]

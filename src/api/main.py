@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="K8s OS Monitor API",
+    title="OS Monitor API",
     version="1.0.0",
     lifespan=lifespan,
 )

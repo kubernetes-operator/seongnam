@@ -16,23 +16,12 @@ LOKI_URL = "http://loki-stack.logging:3100"
 LOKI_QUERIES = {
     "MEMORY_EXHAUSTION": {
         "system": '{job="systemd-journal"} |~ "(?i)(oom|out of memory|memory cgroup)"',
-        "k8s":    '{namespace=~".+"} |~ "(?i)(OOMKilled|memory limit)"',
-    },
-    "CRASHLOOP_BACKOFF": {
-        "k8s": '{namespace=~".+"} |~ "(?i)(CrashLoopBackOff|Back-off restarting|failed to start)"',
     },
     "HIGH_CPU": {
         "system": '{job="systemd-journal"} |~ "(?i)(cpu throttl|soft lockup|hung task)"',
     },
     "DISK_FULL": {
         "system": '{job="systemd-journal"} |~ "(?i)(no space left|disk full|write failed|enospc)"',
-    },
-    "NODE_NOT_READY": {
-        "k8s": '{namespace="kube-system"} |~ "(?i)(node not ready|kubelet|connection refused)"',
-    },
-    "OOM_KILLED": {
-        "k8s":    '{namespace=~".+"} |~ "OOMKilled"',
-        "system": '{job="systemd-journal"} |~ "oom-kill"',
     },
     "HIGH_LOAD": {
         "system": '{job="systemd-journal"} |~ "(?i)(hung task|soft lockup|io wait)"',

@@ -29,7 +29,7 @@ async def test_schema_tables_exist():
         tables = [r["tablename"] for r in await conn.fetch(
             "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
         )]
-    expected = ["cluster_nodes", "os_metrics", "k8s_metrics", "events", "reports"]
+    expected = ["cluster_nodes", "os_metrics", "events", "reports"]
     for t in expected:
         assert t in tables, f"테이블 누락: {t}"
     await close_pool()

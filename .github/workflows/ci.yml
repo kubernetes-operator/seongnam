@@ -66,18 +66,18 @@ jobs:
           context: .
           file: Dockerfile.api
           push: false
-          tags: k8s-monitor-api:pr-check
+          tags: os-monitor-api:pr-check
       - name: Build Collector (no push)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile.collector
           push: false
-          tags: k8s-monitor-collector:pr-check
+          tags: os-monitor-collector:pr-check
       - name: Build Dashboard (no push)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile.dashboard
           push: false
-          tags: k8s-monitor-dashboard:pr-check
+          tags: os-monitor-dashboard:pr-check
