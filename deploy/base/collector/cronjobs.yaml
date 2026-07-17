@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: os-monitor-report-daily
-  namespace: monitoring
+  namespace: os-monitor
 spec:
   schedule: "0 1 * * *"
   jobTemplate:
@@ -31,7 +31,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: os-monitor-predict
-  namespace: monitoring
+  namespace: os-monitor
 spec:
   schedule: "30 2 * * *"
   jobTemplate:

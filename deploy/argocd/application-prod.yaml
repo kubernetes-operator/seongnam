@@ -13,7 +13,7 @@ spec:
     path: deploy/overlays/prod
   destination:
     server: https://kubernetes.default.svc
-    namespace: monitoring
+    namespace: os-monitor
   syncPolicy:
     automated:
       prune: true

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: timescaledb
-  namespace: monitoring
+  namespace: os-monitor
 spec:
   serviceName: timescaledb
   replicas: 1

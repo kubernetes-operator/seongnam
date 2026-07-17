@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: os-monitor-dashboard
-  namespace: monitoring
+  namespace: os-monitor
 spec:
   replicas: 2
   selector:
@@ -36,7 +36,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: os-monitor-dashboard
-  namespace: monitoring
+  namespace: os-monitor
 spec:
   selector:
     app: os-monitor-dashboard
