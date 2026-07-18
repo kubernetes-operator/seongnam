@@ -11,3 +11,4 @@ resources:
   - collector/deployment.yaml
   - collector/cronjobs.yaml
   - dashboard/deployment.yaml
+  - dashboard/httproute.yaml

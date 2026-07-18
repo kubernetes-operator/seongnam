@@ -23,7 +23,7 @@ spec:
             - containerPort: 80
           env:
             - name: API_BASE_URL
-              value: ""
+              value: "/osmonitoring"
           resources:
             requests:
               cpu: 50m
