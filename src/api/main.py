@@ -1,7 +1,7 @@
 """FastAPI 애플리케이션 진입점."""
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -9,6 +9,7 @@ from slowapi.errors import RateLimitExceeded
 
 from api.dependencies import startup, shutdown
 from api.routers import clusters, metrics, events, reports, predictions
+from db.pool import db_conn
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -45,5 +46,11 @@ app.include_router(predictions.router, prefix="/api/v1/predictions",   tags=["pr
 
 
 @app.get("/healthz", tags=["health"])
-async def health():
+async def health(response: Response):
+    try:
+        async with db_conn() as conn:
+            await conn.fetchval("SELECT 1")
+    except Exception as exc:
+        response.status_code = 503
+        return {"status": "error", "detail": str(exc)}
     return {"status": "ok"}

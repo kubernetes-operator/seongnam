@@ -12,3 +12,4 @@ resources:
   - collector/cronjobs.yaml
   - dashboard/deployment.yaml
   - dashboard/httproute.yaml
+  - dashboard/prometheusrule.yaml
