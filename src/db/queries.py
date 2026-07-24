@@ -275,13 +275,15 @@ async def insert_report_record(
     period_end,
     files: dict,
     summary: dict,
+    contents: dict = None,
 ) -> int:
+    contents = contents or {}
     async with pool.acquire() as conn:
         for fmt, path in files.items():
             row = await conn.fetchrow(
                 """
-                INSERT INTO reports (report_type, cluster_name, period_start, period_end, format, file_path, summary)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                INSERT INTO reports (report_type, cluster_name, period_start, period_end, format, file_path, content, summary)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id
                 """,
                 report_type,
@@ -290,6 +292,7 @@ async def insert_report_record(
                 period_end,
                 fmt,
                 path,
+                contents.get(fmt),
                 json.dumps(summary),
             )
     return row["id"]

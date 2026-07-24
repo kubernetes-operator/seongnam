@@ -1,11 +1,14 @@
 """리포트 엔드포인트."""
+import os
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from api.dependencies import get_pool, verify_session
 from api.models import ApiResponse, ReportGenerateRequest
 
 router = APIRouter()
+
+_MEDIA = {"html": "text/html; charset=utf-8", "json": "application/json; charset=utf-8"}
 
 
 @router.get("", dependencies=[Depends(verify_session)])
@@ -50,17 +53,49 @@ async def get_report(report_id: str, pool=Depends(get_pool)):
     return ApiResponse.ok(dict(row))
 
 
-@router.get("/{report_id}/download", dependencies=[Depends(verify_session)])
-async def download_report(report_id: str, fmt: str = Query("html"), pool=Depends(get_pool)):
+async def _fetch_report_row(pool, report_id: str):
+    """report_id 가 숫자면 id 로, 아니면 file_path LIKE 로 조회."""
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT file_path FROM reports WHERE file_path LIKE $1 AND format = $2 ORDER BY created_at DESC LIMIT 1",
+        if str(report_id).isdigit():
+            return await conn.fetchrow(
+                "SELECT format, file_path, content FROM reports WHERE id = $1", int(report_id)
+            )
+        return await conn.fetchrow(
+            "SELECT format, file_path, content FROM reports WHERE file_path LIKE $1 ORDER BY created_at DESC LIMIT 1",
             f"%{report_id}%",
-            fmt,
         )
-    if not row or not row["file_path"]:
-        raise HTTPException(status_code=404, detail="Report file not found")
-    return FileResponse(row["file_path"])
+
+
+def _serve(row, inline: bool):
+    """DB content 우선, 없으면 파일. inline 이면 브라우저 표시용, 아니면 첨부(다운로드)."""
+    fmt = row["format"]
+    media = _MEDIA.get(fmt, "application/octet-stream")
+    disp = "inline" if inline else "attachment"
+    fname = f"report.{fmt}"
+    if row["content"]:
+        return Response(
+            content=row["content"], media_type=media,
+            headers={"Content-Disposition": f'{disp}; filename="{fname}"'},
+        )
+    if row["file_path"] and os.path.exists(row["file_path"]):
+        return FileResponse(row["file_path"], media_type=media, filename=None if inline else fname)
+    raise HTTPException(status_code=404, detail="리포트 내용을 찾을 수 없습니다 (재생성이 필요할 수 있습니다)")
+
+
+@router.get("/{report_id}/download", dependencies=[Depends(verify_session)])
+async def download_report(report_id: str, pool=Depends(get_pool)):
+    row = await _fetch_report_row(pool, report_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return _serve(row, inline=False)
+
+
+@router.get("/{report_id}/view", dependencies=[Depends(verify_session)])
+async def view_report(report_id: str, pool=Depends(get_pool)):
+    row = await _fetch_report_row(pool, report_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return _serve(row, inline=True)
 
 
 @router.post("/generate", dependencies=[Depends(verify_session)])

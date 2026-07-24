@@ -47,12 +47,13 @@ class ReportGenerator:
                 data["predictions"] = None
 
         report_id = f"{report_type}-{period_start.strftime('%Y%m%d')}-{cluster_name}"
-        Path(REPORT_DIR).mkdir(parents=True, exist_ok=True)
         files = {}
+        contents = {}
 
         for fmt in output_formats:
-            path = await self._write_report(report_id, fmt, data)
+            path, content = await self._write_report(report_id, fmt, data)
             files[fmt] = path
+            contents[fmt] = content
 
         from db.queries import insert_report_record
         await insert_report_record(
@@ -63,6 +64,7 @@ class ReportGenerator:
             period_end=period_end,
             files=files,
             summary=data.get("summary", {}),
+            contents=contents,  # Pod 무관 다운로드를 위해 내용을 DB에도 저장
         )
 
         return {"report_id": report_id, "files": files, "summary": data.get("summary", {})}
@@ -72,7 +74,6 @@ class ReportGenerator:
     ) -> dict:
         from db.queries import (
             query_metric_timeseries, query_top_nodes, query_events,
-            query_latest_metrics,
         )
 
         # 노드 목록
@@ -116,20 +117,28 @@ class ReportGenerator:
             "events": [dict(e) for e in events[:50]],
         }
 
-    async def _write_report(self, report_id: str, fmt: str, data: dict) -> str:
+    async def _write_report(self, report_id: str, fmt: str, data: dict) -> tuple[str, str]:
+        """리포트 내용을 생성하여 (파일경로, 내용문자열) 을 반환한다.
+
+        파일은 best-effort 로 기록하되(실패해도 무시), 내용은 DB 저장을 위해 항상 반환한다.
+        """
         path = f"{REPORT_DIR}/{report_id}.{fmt}"
-
         if fmt == "json":
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2, default=str)
-
+            content = json.dumps(data, ensure_ascii=False, indent=2, default=str)
         elif fmt == "html":
-            html = self._render_html(data)
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(html)
+            content = self._render_html(data)
+        else:
+            content = ""
 
-        logger.info("리포트 생성: %s", path)
-        return path
+        try:
+            Path(REPORT_DIR).mkdir(parents=True, exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            logger.info("리포트 생성: %s", path)
+        except OSError as e:
+            logger.warning("리포트 파일 기록 실패(%s) — DB 내용으로 대체: %s", path, e)
+
+        return path, content
 
     def _render_html(self, data: dict) -> str:
         summary = data.get("summary", {})

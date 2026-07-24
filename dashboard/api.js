@@ -57,6 +57,17 @@ export const API = {
   reports: {
     list:      (c)     => _get(`/api/v1/reports?cluster_name=${c}`),
     generate:  (c, t)  => _post('/api/v1/reports/generate', { cluster_name: c, report_type: t, output_formats: ['html', 'json'] }),
+    // 리포트 원문(내용)을 인증 헤더와 함께 텍스트로 가져온다. mode: 'download' | 'view'
+    raw: async (id, mode = 'download') => {
+      const res = await fetch(`${BASE}/api/v1/reports/${id}/${mode}`, { headers: _headers() })
+      if (res.status === 401) {
+        localStorage.removeItem('session_token')
+        if (typeof window.__onAuthError === 'function') window.__onAuthError()
+        throw new Error('인증이 필요합니다')
+      }
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      return res.text()
+    },
   },
   predictions: {
     cluster:   (c)     => _get(`/api/v1/predictions/${c}`),

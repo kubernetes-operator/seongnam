@@ -1,13 +1,13 @@
 """시계열 메트릭 트렌드 분석 및 미래 상태 예측."""
 import statistics
-from datetime import datetime, timezone, timedelta
-from typing import Optional
 
 
 class TrendPredictor:
     """일별 평균값 시계열로 미래 리소스 사용량을 예측한다."""
 
-    MIN_DATA_POINTS = 14
+    # 신뢰도 판정 기준(일). 14일 미만이어도 값은 표시하되 신뢰도를 낮게 표기한다.
+    RELIABLE_DATA_POINTS = 14
+    MIN_DATA_POINTS = 1  # 최소 1개 값만 있어도 현재값 기반 추정치를 낸다
 
     def predict_metric(
         self,
@@ -29,12 +29,13 @@ class TrendPredictor:
                 "metric": metric_name,
                 "status": "insufficient_data",
                 "confidence": "insufficient_data",
-                "message": f"최소 {self.MIN_DATA_POINTS}일 데이터가 필요합니다. 현재: {n}일",
+                "message": "수집된 데이터가 없습니다.",
                 "predictions": {},
             }
 
         cleaned = self._remove_outliers(values)
-        slope, intercept = self._linear_regression(cleaned)
+        # 데이터가 2개 미만이면 회귀 불가 → 기울기 0(현재값 유지)로 추정
+        slope = self._linear_regression(cleaned)[0] if len(cleaned) >= 2 else 0.0
         current = cleaned[-1]
         trend = "increasing" if slope > 0.1 else ("decreasing" if slope < -0.1 else "stable")
 
@@ -48,8 +49,12 @@ class TrendPredictor:
         if slope > 0 and current < 100:
             days_to_full = int((100 - current) / slope)
 
-        confidence = "high" if n >= 30 else ("medium" if n >= 14 else "low")
-        if abs(slope) < 0.01:
+        # 14일 미만이면 데이터가 적으므로 신뢰도를 낮게 표기(값은 그대로 제공)
+        confidence = ("high" if n >= 30
+                      else "medium" if n >= self.RELIABLE_DATA_POINTS
+                      else "low" if n >= 3
+                      else "very_low")
+        if abs(slope) < 0.01 and n >= self.RELIABLE_DATA_POINTS:
             confidence = "high"
 
         return {
@@ -65,6 +70,9 @@ class TrendPredictor:
             "days_to_full": days_to_full,
             "confidence": confidence,
             "data_points": n,
+            "reliable": n >= self.RELIABLE_DATA_POINTS,
+            "message": (None if n >= self.RELIABLE_DATA_POINTS
+                        else f"데이터 {n}일치 기반 추정치 (14일 이상 권장)"),
         }
 
     def generate_recommendations(

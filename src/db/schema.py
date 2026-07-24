@@ -64,8 +64,11 @@ CREATE TABLE IF NOT EXISTS reports (
     period_end   TIMESTAMPTZ NOT NULL,
     format       TEXT NOT NULL,
     file_path    TEXT,
+    content      TEXT,
     summary      JSONB
 );
+-- 기존 배포 마이그레이션: content 컬럼이 없으면 추가
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS content TEXT;
 
 -- 로그인 사용자 (PBKDF2-HMAC-SHA256 해시 + per-user salt, 평문 저장 안 함)
 CREATE TABLE IF NOT EXISTS users (
