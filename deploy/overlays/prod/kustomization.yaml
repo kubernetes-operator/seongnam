@@ -10,7 +10,7 @@ images:
   - name: registry.local.cloud:5000/os-monitor/api
     newTag: "869d264"
   - name: registry.local.cloud:5000/os-monitor/collector
-    newTag: "869d264"
+    newTag: "bfda328"
   - name: registry.local.cloud:5000/os-monitor/dashboard
     newTag: "869d264"
 
