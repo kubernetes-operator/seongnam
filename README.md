@@ -69,17 +69,21 @@ Base OS 상태만 다룬다. **Kubernetes 리소스 자체(파드/디플로이�
 
 ```
 src/
-  collector/    OS(psutil/SSH) 수집기
+  collector/    OS 수집기(os_collector: Prometheus PromQL, os_ssh: SSH 보완, os_service: 루프)
   db/           TimescaleDB 스키마, 마이그레이션, 커넥션 풀, 쿼리
-  analysis/     위기 감지(crisis_engine/crisis_catalog), 예측(predictor/predict_service)
-  api/          FastAPI 앱, 라우터(clusters/metrics/events/reports/predictions)
+  analysis/     위기 감지(crisis_engine/crisis_catalog), 예측(predictor/predict_service), 로그 분석(log_service)
+  api/          FastAPI 앱, 인증(auth), 라우터(auth/clusters/metrics/events/reports/predictions/logs)
   cli/          Typer/Rich CLI
   reports/      리포트 생성기
 tests/
   unit/         ruff + pytest 단위 테스트
   integration/  TimescaleDB, Prometheus 연동 테스트
-dashboard/      정적 웹 대시보드 (SPA, 빌드 도구 없음). 커스텀 CSS(css/style.css) + Chart.js(게이지), API Key 모달 포함
-deploy/         Kustomize base/overlays, ArgoCD Application + 서브패스 노출(proxy/httproute), nginx 설정, Gateway API HTTPRoute, PrometheusRule
+dashboard/      정적 웹 대시보드 (SPA, 빌드 도구 없음). 커스텀 CSS(css/style.css) + Chart.js(게이지), 로그인/설정 포함
+deploy/
+  base/         공통 매니페스트(api/collector/dashboard/timescaledb/cronjobs, HTTPRoute, PrometheusRule)
+  overlays/     환경별 Kustomize 오버레이(dev/prod)
+  argocd/       ArgoCD Application + 서브패스 노출(cmd-params/proxy/httproute)
+  logging/      호스트 systemd journal → Loki 수집용 promtail DaemonSet
 scripts/        이미지 빌드·push 헬퍼 스크립트
 ```
 
@@ -192,6 +196,9 @@ kubectl create secret generic os-monitor-db-secret -n os-monitor \
   --from-literal=POSTGRES_PASSWORD=<password>
 kubectl create secret generic os-monitor-api-secret -n os-monitor \
   --from-literal=API_KEY=<key>
+# 참고: 사용자 인증은 로그인(사용자명+비밀번호)으로 처리되며 기본 admin/password 가 자동 시드된다.
+#       위 API_KEY 는 레거시 항목(현재 인증에는 사용되지 않음). 기본 관리자 계정을 바꾸려면
+#       배포 시 ADMIN_USERNAME/ADMIN_PASSWORD env 를 주거나, 로그인 후 설정 탭에서 변경한다.
 
 # 이미지 빌드·push (아래 CI/CD 참고 — 이 서버에서 수동 빌드)
 bash scripts/build-push-images.sh
