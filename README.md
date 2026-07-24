@@ -18,6 +18,53 @@ Loki (LogQL)         ─┴─→ Collector ─→ TimescaleDB ─→ FastAPI �
 - **제공**: FastAPI REST API, Rich 기반 CLI, 웹 대시보드(`/ai/seoul` 기본 페이지 스타일), 일/주/월/연 리포트.
 - **배포**: Kustomize(base + dev/prod overlay) 기반 GitOps. 이미지는 이 서버에서 수동 빌드·push 후 태그를 git에 커밋하면 **ArgoCD가 자동 동기화·배포**한다 (GitHub Actions/ARC는 제거됨 — 아래 CI/CD 참고).
 
+## 모니터링 대상
+
+Base OS 상태만 다룬다. **Kubernetes 리소스 자체(파드/디플로이먼트/서비스 등)의 상태는 대상이 아니다.**
+
+### OS 메트릭 (Prometheus/Node Exporter, 60초 주기)
+
+| 범주 | 수집 항목 | 임계값 (warning / critical) |
+|------|-----------|------------------------------|
+| **CPU** | 사용률(`usage_ratio`), iowait(%) | 80% / 90% |
+| **Memory** | 사용률, 사용 바이트, swap 사용률 | 80% / 90% |
+| **Disk** | 루트(`/`) 사용률, read/write B/s | 75% / 90% |
+| **Network** | rx/tx B/s (`lo` 제외) | — (추세 관찰) |
+| **Load** | load1/5/15, `load_per_core` | 1.5 / 2.0 (코어당) |
+| **보완(SSH)** | CPU 코어 수, 좀비 프로세스 수, inode 사용률, uptime | — |
+
+임계값 초과 시 `crisis_engine`이 위기 이벤트를 생성하고 관련 로그를 함께 첨부한다.
+
+### 시스템 로그 (Loki / systemd journal)
+
+- 각 노드의 **호스트 systemd journal** 전량 (우선순위 `emerg`~`debug`, systemd `unit`별, `node_name`별).
+- **이상 시그니처 9종 자동 탐지**: OOM Kill, 커널 패닉/Oops, 디스크 I/O 오류, 파일시스템 오류, 디스크 공간 부족, segfault, hung task/soft lockup, 인증 실패(브루트포스 의심), 서비스 기동 실패.
+
+## 수집 구조
+
+```
+                                  ┌──────────────── 메트릭 경로 ────────────────┐
+  Node Exporter (전 노드)  ──PromQL──▶  Prometheus  ──┐
+                                                       ├─▶  Collector(Deployment, 60초 루프)
+  각 노드 SSH(kwlee@<ip>) ──보완수집──────────────────┘         │  (inode/zombie/uptime/cores)
+                                                                ▼
+                                                         TimescaleDB (hypertable + hourly CAGG)
+                                                                │
+                                  ┌──────────────── 로그 경로 ─────────────────┐│
+  각 노드 /var/log/journal ─▶ os-journal-promtail(DaemonSet) ─▶ Loki           ││
+                                        (job=systemd-journal)      ▲            ││
+                                                                   │ LogQL      ▼▼
+                                              log_service ─────────┘        FastAPI ─▶ CLI / 대시보드 / 리포트
+                                              crisis_engine ───(로그 증거)──────┘
+
+  CronJob:  predict(매일 02:30)   report-daily(매일 01:00)
+```
+
+- **메트릭**: `os_collector`가 기존 Prometheus(Node Exporter)에 **PromQL**로 질의 → 새 DaemonSet 없이 CPU/Mem/Disk/Net/Load 수집. Prometheus에 없는 항목(inode, 좀비 프로세스, uptime, 코어 수)은 `os_ssh`가 `kwlee@<node-ip>` SSH로 보완. `os_service`가 이를 60초마다 합쳐 TimescaleDB에 적재하고 임계값을 검사한다.
+- **로그**: 전용 `os-journal-promtail` DaemonSet이 각 노드의 영구 저널(`/var/log/journal`)을 읽어 Loki로 전송(`job="systemd-journal"`). `log_service`가 LogQL로 조회·요약·시그니처 탐지하고, `crisis_engine`은 위기 발생 시 관련 로그를 증거로 첨부한다. (로그는 Loki 자체 보존을 사용하며 TimescaleDB에 중복 저장하지 않는다.)
+- **저장**: 메트릭 시계열은 TimescaleDB 하이퍼테이블 + hourly 연속 집계. 로그는 Loki.
+- **제공**: FastAPI가 위 데이터를 REST로 노출하고, CLI·웹 대시보드·리포트가 이를 소비한다.
+
 ## 디렉토리 구조
 
 ```
@@ -173,3 +220,17 @@ docker push registry.local.cloud:5000/os-monitor/dashboard:$SHA
 ## 개발 하네스
 
 이 프로젝트는 `harness@harness-marketplace` 플러그인으로 구성된 전용 에이전트/스킬 세트로 개발되었다 (`.claude/agents/`, `.claude/skills/`). 모니터링 시스템 관련 작업 시 `os-monitor` 오케스트레이터 스킬이 12개 Phase(수집→저장→분석→API→CLI→대시보드→리포트→QA→컨테이너→CI/CD→GitOps)로 작업을 조율한다. 자세한 내용은 `CLAUDE.md` 참고.
+
+## 변경 내역
+
+| 날짜 | 변경 내용 |
+|------|-----------|
+| 2026-07-17 | K8s 상태 모니터링 기능 제거 → **OS Monitor**로 스코프 확정·개명. 배포 네임스페이스 `monitoring` → `os-monitor`. |
+| 2026-07-18 | 대시보드를 Gateway API로 `/osmonitoring` 노출, 브라우저 캐싱 비활성화, `/healthz` DB 연결 검사 + liveness/readiness probe + PrometheusRule 알림 추가. |
+| 2026-07-24 | 대시보드 개요에 **"조치 필요 항목"** 패널 추가(미해결 위기 이벤트 + 임계값 초과 노드, 성능 섹션 하단·최대 10개·클릭 시 해당 메뉴 이동), 사이드바 "OS Monitor" 클릭 시 홈 이동. |
+| 2026-07-24 | **GitHub Actions/ARC 제거** → 수동 이미지 빌드 + **ArgoCD GitOps** 배포로 전환. git remote의 **GitHub PAT 평문 노출 제거**(gh 자격증명 헬퍼 경유). |
+| 2026-07-24 | **ArgoCD 클러스터 설치·가동**, `https://test2.studiobasa.com/argocd/` 노출(서브패스 base-href 교정용 nginx 프록시 포함). |
+| 2026-07-24 | **대시보드 UI 전면 재설계** — Bootstrap 제거, `/ai/seoul`(k8s-cluster-tester) 기본 페이지 스타일(topbar+탭, 라이트/다크 테마) 도입. |
+| 2026-07-24 | **Linux 시스템 로그 수집·분석 추가** — 호스트 systemd journal → Loki(전용 promtail), `log_service`(요약·이상 시그니처 9종), `/api/v1/logs*`, 대시보드 "로그" 탭, CLI `monitor logs`. |
+
+> 하네스(에이전트/스킬) 구성 변경 이력은 `CLAUDE.md`의 변경 이력 표를 참고.
