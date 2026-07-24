@@ -13,6 +13,7 @@ Loki (LogQL)         ─┴─→ Collector ─→ TimescaleDB ─→ FastAPI �
 
 - **수집**: OS 메트릭은 Node Exporter(Prometheus) 우선 조회, 부족한 항목(inode, zombie process 등)은 SSH로 보완.
 - **저장**: TimescaleDB(PostgreSQL)에 시계열 적재, hourly 연속 집계(Continuous Aggregate) 사용.
+- **로그**: 호스트 systemd journal을 전용 promtail로 Loki에 적재하고, `log_service`가 LogQL로 조회·요약·이상 시그니처 탐지 (아래 "시스템 로그 분석" 참고).
 - **분석**: 임계값 기반 위기 감지(`crisis_engine`) + Loki 로그 연계 진단, 선형회귀/이동평균 기반 예측(`predictor`).
 - **제공**: FastAPI REST API, Rich 기반 CLI, 웹 대시보드(`/ai/seoul` 기본 페이지 스타일), 일/주/월/연 리포트.
 - **배포**: Kustomize(base + dev/prod overlay) 기반 GitOps. 이미지는 이 서버에서 수동 빌드·push 후 태그를 git에 커밋하면 **ArgoCD가 자동 동기화·배포**한다 (GitHub Actions/ARC는 제거됨 — 아래 CI/CD 참고).
@@ -59,6 +60,7 @@ scripts/        이미지 빌드·push 헬퍼 스크립트
 | `/api/v1/events` | 위기 이벤트 조회 |
 | `/api/v1/reports` | 리포트 생성/다운로드 |
 | `/api/v1/predictions` | 예측 데이터 조회 |
+| `/api/v1/logs` | 시스템 로그 조회(`/`), 요약(`/summary`), 이상 시그니처 탐지(`/patterns`) — Loki(systemd journal) 기반 |
 | `/healthz` | 헬스체크 — TimescaleDB에 `SELECT 1`을 실제로 실행해 DB 연결까지 확인한다 (실패 시 503). Kubernetes liveness/readiness probe와 Prometheus 알림이 이 응답에 의존한다. |
 
 인증은 API Key(Bearer 토큰), CORS/Rate limiting 적용.
@@ -74,6 +76,7 @@ scripts/        이미지 빌드·push 헬퍼 스크립트
 - `events` — 위기 이벤트 목록
 - `predict` — 예측 결과 조회
 - `report` — 리포트 생성 트리거
+- `logs` — 호스트 시스템 로그 조회 + 이상 시그니처 탐지 (Loki/journald)
 
 ## 웹 대시보드 접근
 
@@ -82,6 +85,15 @@ scripts/        이미지 빌드·push 헬퍼 스크립트
 - 두 진입점 모두 같은 대시보드 파드로 연결되며, `window.API_BASE_URL`이 `/osmonitoring`으로 고정 주입되어 있어 어느 경로로 들어와도 API 프록시가 동일하게 동작한다 (`entrypoint.sh`가 index.html의 `window.API_BASE_URL = ''` 문자열을 치환).
 - UI는 `/ai/seoul`(k8s-cluster-tester) 기본 페이지 스타일 — 상단 **topbar + 수평 탭**(개요/노드/이벤트/예측/리포트), 라이트/다크 테마 자동 대응. 좌측 상단 **"OS Monitor"** 클릭 시 개요(메인)로 이동.
 - 최초 접속 시 우상단 **"🔑 API Key"** 버튼으로 API Key를 입력해야 클러스터/메트릭 데이터가 조회된다 (키 입력 전에는 모든 API 호출이 401/403으로 실패해 화면에 데이터가 뜨지 않는다).
+
+## 시스템 로그 분석 (Loki / systemd journal)
+
+메트릭 외에 **호스트 Linux 시스템 로그**를 수집·분석한다.
+
+- **수집**: `deploy/logging/host-journal-promtail.yaml` — 각 노드의 영구 저널(`/var/log/journal`)을 읽어 Loki에 `job="systemd-journal"`(라벨 `node_name`/`unit`/`priority`)로 전송하는 전용 promtail DaemonSet. (클러스터 기본 promtail은 파드 로그만 수집하므로 호스트 OS 로그용으로 별도 배포. `logging` 네임스페이스, ArgoCD 관리 대상 아님 → `kubectl apply -f`로 배포/갱신.)
+- **분석**: `src/analysis/log_service.py` — LogQL로 최근 로그 / 우선순위·노드별 요약 / 알려진 이상 시그니처(OOM·커널패닉·I/O·파일시스템·디스크·segfault·hung task·인증실패·서비스실패) 탐지.
+- **제공**: `/api/v1/logs*` API, 대시보드 **"로그" 탭**(필터·요약카드·탐지패턴·로그테이블), CLI `monitor logs`.
+- **주의(민감정보)**: 저널에는 인증 로그 등 개인정보가 포함될 수 있다. 대시보드는 우선순위/시그니처 중심으로 표시하며, 필요 시 promtail 파이프라인에서 필터링을 추가할 것.
 
 ## 헬스체크 및 모니터링 알림
 
