@@ -106,7 +106,27 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 
 window.addEventListener('hashchange', navigate)
 
-// 자동 새로고침 30초 (로그인 상태에서만)
-setInterval(() => { if (loginOverlay.hidden) navigate() }, 30000)
+// ── 자동 새로고침 (기본 1분, 선택: 10초/30초/1분/10분/안함) ──
+const DEFAULT_REFRESH_MS = 60000
+let refreshTimer = null
+
+function applyRefreshInterval() {
+  const sel = document.getElementById('refresh-interval')
+  const ms = Number(sel.value)
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+  localStorage.setItem('refresh_ms', String(ms))
+  if (ms > 0) {
+    refreshTimer = setInterval(() => { if (loginOverlay.hidden) navigate() }, ms)
+  }
+}
+
+;(function initRefreshInterval() {
+  const sel = document.getElementById('refresh-interval')
+  const saved = localStorage.getItem('refresh_ms')
+  sel.value = (saved !== null && [...sel.options].some(o => o.value === saved))
+    ? saved : String(DEFAULT_REFRESH_MS)
+  sel.addEventListener('change', applyRefreshInterval)
+  applyRefreshInterval()
+})()
 
 boot()

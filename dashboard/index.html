@@ -23,6 +23,13 @@
   <div class="topbar-tools">
     <select id="cluster-select" class="select-sm"><option>클러스터 로딩 중...</option></select>
     <button id="refresh-btn" class="btn-secondary btn-sm">↻ 새로고침</button>
+    <select id="refresh-interval" class="select-sm" title="자동 새로고침 주기">
+      <option value="10000">10초</option>
+      <option value="30000">30초</option>
+      <option value="60000">1분</option>
+      <option value="600000">10분</option>
+      <option value="0">새로고침 안함</option>
+    </select>
     <span id="current-user" class="muted"></span>
     <button id="logout-btn" class="btn-secondary btn-sm" hidden>로그아웃</button>
   </div>
