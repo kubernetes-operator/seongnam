@@ -1,0 +1,22 @@
+# ArgoCD 서브패스(/argocd) 노출을 위한 서버 파라미터.
+# 주의: 이 ConfigMap 은 upstream ArgoCD install.yaml 에 포함돼 있다.
+# ArgoCD 설치/업그레이드(install.yaml 재적용) 후에는 아래 값이 초기화되므로
+# 이 파일을 다시 apply 하고 argocd-server 를 재시작해야 한다.
+#   kubectl apply -f deploy/argocd/argocd-cmd-params-cm.yaml
+#   kubectl rollout restart deploy/argocd-server -n argocd
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # 게이트웨이가 TLS 종료 후 HTTP 로 전달하므로 서버는 TLS 없이 기동
+  server.insecure: "true"
+  # 리버스 프록시 서브패스: 자산/API 를 /argocd 아래로 서빙 (라우팅)
+  server.rootpath: "/argocd"
+  # base href 값(참고). 실제 index.html base href 재작성은 argocd-proxy 의
+  # nginx sub_filter 가 수행한다 (ArgoCD v3.4.5 가 이 태그를 재작성하지 않음).
+  server.basehref: "/argocd"
