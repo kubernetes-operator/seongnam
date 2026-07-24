@@ -10,12 +10,12 @@ export async function renderDashboard(cluster) {
 
   main.innerHTML = `
     <h5 class="mb-3">클러스터 요약 — <span class="text-primary">${cluster}</span></h5>
-    <div id="action-items" class="mb-4"></div>
     <div id="gauges" class="row g-3 mb-4"></div>
-    <div class="row g-3">
+    <div class="row g-3 mb-4">
       <div class="col-md-8"><canvas id="trend-chart" height="120"></canvas></div>
       <div class="col-md-4" id="top-nodes"></div>
     </div>
+    <div id="action-items"></div>
   `
 
   const [summary, top, events] = await Promise.all([
@@ -105,6 +105,10 @@ function renderActionItems(events, top) {
     return
   }
 
+  const LIMIT = 10
+  const shown = items.slice(0, LIMIT)
+  const overflow = items.length - shown.length
+
   el.innerHTML = `
     <div class="card">
       <div class="card-header fw-bold d-flex justify-content-between align-items-center">
@@ -112,7 +116,7 @@ function renderActionItems(events, top) {
         <span class="badge bg-danger">${items.length}</span>
       </div>
       <div class="list-group list-group-flush">
-        ${items.map(it => `
+        ${shown.map(it => `
           <button type="button"
             class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
             onclick="${it.onclick}">
@@ -125,6 +129,11 @@ function renderActionItems(events, top) {
           </button>
         `).join('')}
       </div>
+      ${overflow > 0 ? `
+        <button type="button" class="card-footer text-center small text-primary border-0 bg-transparent"
+          onclick="window.goToEvents()">
+          외 ${overflow}건 더 보기 →
+        </button>` : ''}
     </div>
   `
 }
@@ -138,4 +147,9 @@ window.goToEvent = (id) => {
 // 노드 항목 클릭 → 노드 메뉴로 이동
 window.goToNodes = () => {
   location.hash = '#nodes'
+}
+
+// '더 보기' → 이벤트 목록 메뉴로 이동
+window.goToEvents = () => {
+  location.hash = '#events'
 }
