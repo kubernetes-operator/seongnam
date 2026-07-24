@@ -1,5 +1,13 @@
 import { API } from '../api.js'
 
+// 이벤트 발생 시각 포맷 — ISO/타임스탬프를 로컬 시각으로 표시
+function _fmtTime(t) {
+  if (!t) return '-'
+  const d = new Date(t)
+  if (isNaN(d.getTime())) return String(t).slice(0, 16).replace('T', ' ')
+  return d.toLocaleString('ko-KR', { hour12: false })
+}
+
 export async function renderEvents(cluster) {
   const main = document.getElementById('main-content')
   if (!cluster) { main.innerHTML = '<p class="muted">클러스터를 선택하세요.</p>'; return }
@@ -27,7 +35,7 @@ export async function renderEvents(cluster) {
         <td><span class="sev-pill ${sevClass}">${sev}</span></td>
         <td>${d.crisis_type || ev.event_type || ''}</td>
         <td>${ev.node_name || ''}</td>
-        <td>${String(ev.created_at || '').slice(0, 16)}</td>
+        <td style="white-space:nowrap">${_fmtTime(ev.time || ev.created_at)}</td>
         <td>${ev.resolved_at ? '✅' : `<button class="btn-secondary btn-sm" onclick="event.stopPropagation();window.resolveEvent(${ev.id})">해결</button>`}</td>
       </tr>`
     }).join('')
@@ -50,6 +58,8 @@ export async function renderEvents(cluster) {
       <div class="card card-flush">
         <div class="card-header">이벤트 #${id} 상세</div>
         <div style="padding:14px">
+          <p><b>발생 시각:</b> ${_fmtTime(ev.data.time || ev.data.created_at)}${ev.data.resolved_at ? ` &nbsp;·&nbsp; <b>해결:</b> ${_fmtTime(ev.data.resolved_at)}` : ''}</p>
+          <p><b>노드:</b> ${ev.data.node_name || ''}</p>
           <p><b>위기유형:</b> ${d.crisis_type || ''}</p>
           <p><b>설명:</b> ${cat.description || ''}</p>
           <p><b>즉각조치:</b></p>

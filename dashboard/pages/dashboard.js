@@ -1,6 +1,13 @@
 import { API } from '../api.js'
 import { renderGauge } from '../components/gauge.js'
 
+function _fmtTime(t) {
+  if (!t) return '-'
+  const d = new Date(t)
+  if (isNaN(d.getTime())) return String(t).slice(0, 16).replace('T', ' ')
+  return d.toLocaleString('ko-KR', { hour12: false })
+}
+
 export async function renderDashboard(cluster) {
   const main = document.getElementById('main-content')
   if (!cluster) {
@@ -73,7 +80,7 @@ function renderActionItems(events, top) {
       sevClass: sev === 'critical' ? 'sev-critical' : 'sev-warning',
       label: sev,
       title: `${d.crisis_type || ev.event_type || '위기 이벤트'} — ${ev.node_name || ''}`,
-      time: String(ev.created_at || '').slice(0, 16),
+      time: _fmtTime(ev.time || ev.created_at),
       onclick: `window.goToEvent(${ev.id})`,
     })
   })
