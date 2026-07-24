@@ -235,5 +235,6 @@ docker push registry.local.cloud:5000/os-monitor/dashboard:$SHA
 | 2026-07-24 | **Linux 시스템 로그 수집·분석 추가** — 호스트 systemd journal → Loki(전용 promtail), `log_service`(요약·이상 시그니처 9종), `/api/v1/logs*`, 대시보드 "로그" 탭, CLI `monitor logs`. |
 | 2026-07-24 | **인증을 사용자명+비밀번호 로그인 체계로 교체**(기존 단일 API Key) — `/api/v1/auth`, `users`/`sessions` 테이블, 세션 토큰, 대시보드 로그인 화면·설정(비밀번호 변경) 탭. 기본 `admin`/`password` 시드. |
 | 2026-07-24 | 노드 탭 **OS/커널 표시 수정** — `node_os_info`/`node_uname_info`에서 수집(수집기 Pod의 SSH 인증 불가로 SSH 보완이 동작하지 않던 문제 우회). 로그 이상 시그니처에 **노드별 발생 건수 표기** 추가. |
+| 2026-07-24 | **예측을 14일 미만 데이터에서도 표시**(현재값 기반 추정치 + 신뢰도 등급 low/very_low, 예측 탭에 신뢰도 열). **리포트 다운로드/미리보기 수정** — 내용을 DB(`reports.content`)에 저장해 API 다중 Pod/CronJob 간 공유 문제 해결, 대시보드에서 인증 fetch→blob 다운로드 + HTML iframe 미리보기(보기/다운로드 버튼). |
 
 > 하네스(에이전트/스킬) 구성 변경 이력은 `CLAUDE.md`의 변경 이력 표를 참고.
