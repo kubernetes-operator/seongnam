@@ -4,17 +4,14 @@ import { renderGauge } from '../components/gauge.js'
 export async function renderDashboard(cluster) {
   const main = document.getElementById('main-content')
   if (!cluster) {
-    main.innerHTML = '<p class="text-muted">클러스터를 선택하세요.</p>'
+    main.innerHTML = '<p class="muted">클러스터를 선택하세요.</p>'
     return
   }
 
   main.innerHTML = `
-    <h5 class="mb-3">클러스터 요약 — <span class="text-primary">${cluster}</span></h5>
-    <div id="gauges" class="row g-3 mb-4"></div>
-    <div class="row g-3 mb-4">
-      <div class="col-md-8"><canvas id="trend-chart" height="120"></canvas></div>
-      <div class="col-md-4" id="top-nodes"></div>
-    </div>
+    <h2>클러스터 요약 — <span style="color:var(--info)">${cluster}</span></h2>
+    <div id="gauges" class="summary-gauges"></div>
+    <div id="top-nodes" class="mb-4"></div>
     <div id="action-items"></div>
   `
 
@@ -24,40 +21,39 @@ export async function renderDashboard(cluster) {
     API.events.list(cluster, false, 50),
   ]).catch(() => [{}, [], { data: [] }])
 
-  // 조치 필요 항목 — 미해결 위기 이벤트 + 임계값 초과 노드
-  renderActionItems(events, top)
-
-  // Gauges — 클러스터 평균 (API는 배열로 반환)
+  // 게이지 — 클러스터 평균
   const nodeList = summary?.data?.os || []
   if (nodeList.length) {
     const avg = (key) => nodeList.reduce((s, n) => s + (n[key] || 0), 0) / nodeList.length
-    const gaugesEl = document.getElementById('gauges')
-    gaugesEl.innerHTML = ['cpu_usage_ratio','memory_usage_ratio','disk_usage_ratio'].map((m,i) => `
-      <div class="col-md-4">
-        <div class="card p-3 text-center">
-          <div class="card-title small text-muted">${['CPU','Memory','Disk'][i]} 평균</div>
-          <canvas id="gauge-${m}" height="100"></canvas>
-        </div>
+    const metrics = ['cpu_usage_ratio', 'memory_usage_ratio', 'disk_usage_ratio']
+    const labels  = ['CPU', 'Memory', 'Disk']
+    document.getElementById('gauges').innerHTML = metrics.map((m, i) => `
+      <div class="card text-center">
+        <div class="card-title">${labels[i]} 평균</div>
+        <canvas id="gauge-${m}" height="100"></canvas>
       </div>
     `).join('')
-    ;['cpu_usage_ratio','memory_usage_ratio','disk_usage_ratio'].forEach(m =>
-      renderGauge(`gauge-${m}`, avg(m), m)
-    )
+    metrics.forEach(m => renderGauge(`gauge-${m}`, avg(m), m))
+  } else {
+    document.getElementById('gauges').innerHTML = '<p class="muted">메트릭 데이터가 없습니다.</p>'
   }
 
-  // Top nodes
+  // CPU 상위 노드
   const topData = top?.data || []
   document.getElementById('top-nodes').innerHTML = `
-    <div class="card p-3">
-      <div class="card-title small text-muted">CPU 상위 5개 노드</div>
-      ${topData.map((n,i) => `
-        <div class="d-flex justify-content-between small mb-1">
-          <span>${i+1}. ${n.node_name}</span>
-          <span class="${n.avg_value>=90?'text-danger':n.avg_value>=80?'text-warning':'text-success'}">${n.avg_value?.toFixed(1)}%</span>
+    <div class="card">
+      <div class="card-title">CPU 상위 5개 노드</div>
+      ${topData.map((n, i) => `
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin:4px 0">
+          <span>${i + 1}. ${n.node_name}</span>
+          <span class="${n.avg_value >= 90 ? 'text-critical' : n.avg_value >= 80 ? 'text-warning' : 'text-ok'}">${n.avg_value?.toFixed(1)}%</span>
         </div>
-      `).join('')}
+      `).join('') || '<span class="muted">데이터 없음</span>'}
     </div>
   `
+
+  // 조치 필요 항목 (성능 하단, 최대 10개)
+  renderActionItems(events, top)
 }
 
 // 조치 필요 항목 패널 — 클릭 시 해당 메뉴로 이동
@@ -65,18 +61,16 @@ function renderActionItems(events, top) {
   const el = document.getElementById('action-items')
   if (!el) return
 
-  const evtList = (events?.data || []).filter(ev => !ev.resolved_at)
+  const evtList   = (events?.data || []).filter(ev => !ev.resolved_at)
   const critNodes = (top?.data || []).filter(n => n.avg_value >= 80)
-
   const items = []
 
-  // 1) 미해결 위기 이벤트 → 이벤트 메뉴로 이동 후 상세 열기
   evtList.forEach(ev => {
     const d = typeof ev.details === 'string' ? JSON.parse(ev.details || '{}') : (ev.details || {})
     const sev = ev.severity || 'warning'
     items.push({
       icon: sev === 'critical' ? '🔴' : '🟠',
-      sevClass: sev === 'critical' ? 'danger' : 'warning',
+      sevClass: sev === 'critical' ? 'sev-critical' : 'sev-warning',
       label: sev,
       title: `${d.crisis_type || ev.event_type || '위기 이벤트'} — ${ev.node_name || ''}`,
       time: String(ev.created_at || '').slice(0, 16),
@@ -84,12 +78,11 @@ function renderActionItems(events, top) {
     })
   })
 
-  // 2) 임계값 초과 노드 → 노드 메뉴로 이동
   critNodes.forEach(n => {
     const crit = n.avg_value >= 90
     items.push({
       icon: crit ? '🔴' : '🟠',
-      sevClass: crit ? 'danger' : 'warning',
+      sevClass: crit ? 'sev-critical' : 'sev-warning',
       label: crit ? 'critical' : 'warning',
       title: `${n.node_name} CPU ${n.avg_value?.toFixed(1)}%`,
       time: '리소스 임계값 초과',
@@ -98,10 +91,7 @@ function renderActionItems(events, top) {
   })
 
   if (!items.length) {
-    el.innerHTML = `
-      <div class="card border-success">
-        <div class="card-body py-2 text-success small">✅ 조치가 필요한 항목이 없습니다.</div>
-      </div>`
+    el.innerHTML = `<div class="card"><span class="text-ok">✅ 조치가 필요한 항목이 없습니다.</span></div>`
     return
   }
 
@@ -110,30 +100,24 @@ function renderActionItems(events, top) {
   const overflow = items.length - shown.length
 
   el.innerHTML = `
-    <div class="card">
-      <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+    <div class="card card-flush">
+      <div class="card-header">
         <span>⚠️ 조치 필요 항목</span>
-        <span class="badge bg-danger">${items.length}</span>
+        <span class="badge badge-count">${items.length}</span>
       </div>
-      <div class="list-group list-group-flush">
+      <div class="list-flush">
         ${shown.map(it => `
-          <button type="button"
-            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-            onclick="${it.onclick}">
+          <button type="button" class="list-item" onclick="${it.onclick}">
             <span>
-              <span class="me-2">${it.icon}</span>
-              <span class="badge bg-${it.sevClass} me-2">${it.label}</span>
+              <span style="margin-right:6px">${it.icon}</span>
+              <span class="sev-pill ${it.sevClass}" style="margin-right:8px">${it.label}</span>
               ${it.title}
             </span>
-            <small class="text-muted">${it.time} ›</small>
+            <span class="muted">${it.time} ›</span>
           </button>
         `).join('')}
       </div>
-      ${overflow > 0 ? `
-        <button type="button" class="card-footer text-center small text-primary border-0 bg-transparent"
-          onclick="window.goToEvents()">
-          외 ${overflow}건 더 보기 →
-        </button>` : ''}
+      ${overflow > 0 ? `<button type="button" class="card-link" onclick="window.goToEvents()">외 ${overflow}건 더 보기 →</button>` : ''}
     </div>
   `
 }
@@ -143,13 +127,7 @@ window.goToEvent = (id) => {
   window.__openEventId = id
   location.hash = '#events'
 }
-
 // 노드 항목 클릭 → 노드 메뉴로 이동
-window.goToNodes = () => {
-  location.hash = '#nodes'
-}
-
+window.goToNodes = () => { location.hash = '#nodes' }
 // '더 보기' → 이벤트 목록 메뉴로 이동
-window.goToEvents = () => {
-  location.hash = '#events'
-}
+window.goToEvents = () => { location.hash = '#events' }

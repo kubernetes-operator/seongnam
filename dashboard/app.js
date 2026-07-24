@@ -17,15 +17,14 @@ const PAGES = {
 
 async function navigate() {
   const hash = location.hash || '#dashboard'
-  const fn   = PAGES[hash]
-  if (!fn) return
+  const fn   = PAGES[hash] || renderDashboard
 
-  // 네비 활성화
-  document.querySelectorAll('.nav-link').forEach(el => {
-    el.classList.toggle('active', el.getAttribute('href') === hash)
+  // 탭 활성화
+  document.querySelectorAll('#tabs .tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.hash === hash)
   })
 
-  if (fn) await fn(currentCluster).catch(err => {
+  await fn(currentCluster).catch(err => {
     document.getElementById('main-content').innerHTML =
       `<div class="alert alert-danger">로드 실패: ${err.message}</div>`
   })
@@ -43,19 +42,29 @@ async function loadClusters() {
   }
 }
 
+// ── 탭/홈 내비게이션 ──
+document.querySelectorAll('#tabs .tab').forEach(btn => {
+  btn.addEventListener('click', () => { location.hash = btn.dataset.hash })
+})
+document.getElementById('home-link').addEventListener('click', () => { location.hash = '#dashboard' })
+
 document.getElementById('cluster-select').addEventListener('change', e => {
   currentCluster = e.target.value
   navigate()
 })
-
 document.getElementById('refresh-btn').addEventListener('click', () => navigate())
 
+// ── API Key 모달 ──
+const modal = document.getElementById('api-key-modal')
+const openModal  = () => { document.getElementById('api-key-input').value = localStorage.getItem('api_key') || ''; modal.hidden = false }
+const closeModal = () => { modal.hidden = true }
+document.getElementById('api-key-btn').addEventListener('click', openModal)
+document.getElementById('api-key-cancel').addEventListener('click', closeModal)
+modal.addEventListener('click', e => { if (e.target === modal) closeModal() })
 document.getElementById('api-key-form').addEventListener('submit', e => {
   e.preventDefault()
-  const key = document.getElementById('api-key-input').value
-  localStorage.setItem('api_key', key)
-  const modal = bootstrap.Modal.getInstance(document.getElementById('api-key-modal'))
-  modal?.hide()
+  localStorage.setItem('api_key', document.getElementById('api-key-input').value)
+  closeModal()
   loadClusters().then(navigate)
 })
 
