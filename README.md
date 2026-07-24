@@ -14,8 +14,8 @@ Loki (LogQL)         ─┴─→ Collector ─→ TimescaleDB ─→ FastAPI �
 - **수집**: OS 메트릭은 Node Exporter(Prometheus) 우선 조회, 부족한 항목(inode, zombie process 등)은 SSH로 보완.
 - **저장**: TimescaleDB(PostgreSQL)에 시계열 적재, hourly 연속 집계(Continuous Aggregate) 사용.
 - **분석**: 임계값 기반 위기 감지(`crisis_engine`) + Loki 로그 연계 진단, 선형회귀/이동평균 기반 예측(`predictor`).
-- **제공**: FastAPI REST API, Rich 기반 CLI, Chart.js 웹 대시보드, 일/주/월/연 리포트.
-- **배포**: Kustomize(base + dev/prod overlay) 기반 GitOps 구조, Harbor 레지스트리, GitHub Actions CI/CD(설정은 되어 있으나 아래 CI/CD 항목의 주의사항 참고).
+- **제공**: FastAPI REST API, Rich 기반 CLI, 웹 대시보드(`/ai/seoul` 기본 페이지 스타일), 일/주/월/연 리포트.
+- **배포**: Kustomize(base + dev/prod overlay) 기반 GitOps. 이미지는 이 서버에서 수동 빌드·push 후 태그를 git에 커밋하면 **ArgoCD가 자동 동기화·배포**한다 (GitHub Actions/ARC는 제거됨 — 아래 CI/CD 참고).
 
 ## 디렉토리 구조
 
@@ -30,10 +30,9 @@ src/
 tests/
   unit/         ruff + pytest 단위 테스트
   integration/  TimescaleDB, Prometheus 연동 테스트
-dashboard/      Chart.js + Bootstrap 5 정적 웹 대시보드 (SPA, API Key 모달 포함)
-deploy/         Kustomize base/overlays, ArgoCD Application, nginx 설정, Gateway API HTTPRoute, PrometheusRule
+dashboard/      정적 웹 대시보드 (SPA, 빌드 도구 없음). 커스텀 CSS(css/style.css) + Chart.js(게이지), API Key 모달 포함
+deploy/         Kustomize base/overlays, ArgoCD Application + 서브패스 노출(proxy/httproute), nginx 설정, Gateway API HTTPRoute, PrometheusRule
 scripts/        이미지 빌드·push 헬퍼 스크립트
-.github/workflows/  CI(lint/test/build), CD(Harbor push + GitOps 태그 업데이트)
 ```
 
 ## 기술 스택
@@ -44,10 +43,10 @@ scripts/        이미지 빌드·push 헬퍼 스크립트
 - **수집**: aiohttp(Prometheus), asyncssh(SSH 보완 수집)
 - **CLI**: Typer, Rich
 - **분석**: numpy
-- **대시보드**: Chart.js, Bootstrap 5, Vanilla JS (빌드 도구 없음)
+- **대시보드**: Vanilla JS + 커스텀 CSS(`/ai/seoul` 기본 페이지 스타일, 라이트/다크 테마), Chart.js(게이지) — 빌드 도구 없음
 - **테스트**: pytest, pytest-asyncio, pytest-cov, httpx
-- **배포**: Docker(multi-stage), Harbor, Kustomize, ArgoCD(매니페스트만 준비됨, 아래 참고), GitHub Actions
-- **인그레스**: NodePort + Gateway API(nginx Gateway Fabric)
+- **배포**: Docker(multi-stage), Harbor, Kustomize, ArgoCD(클러스터에 설치·가동 중)
+- **인그레스**: NodePort + Gateway API(NGINX Gateway Fabric)
 
 ## API
 
@@ -80,8 +79,9 @@ scripts/        이미지 빌드·push 헬퍼 스크립트
 
 - **NodePort**: 클러스터 노드 IP + `:30605` (구성에 따라 다를 수 있음, `deploy/base/dashboard/deployment.yaml`/Service 참고)
 - **Gateway API**: `https://test2.studiobasa.com/osmonitoring/` (`deploy/base/dashboard/httproute.yaml`, 클러스터의 공용 nginx Gateway에 붙는다)
-- 두 진입점 모두 같은 대시보드 파드로 연결되며, `window.API_BASE_URL`이 `/osmonitoring`으로 고정 주입되어 있어 어느 경로로 들어와도 API 프록시가 동일하게 동작한다.
-- 최초 접속 시 좌측 사이드바 **"🔑 API Key"** 버튼으로 API Key를 입력해야 클러스터/메트릭 데이터가 조회된다 (키를 입력하기 전에는 모든 API 호출이 401/403으로 실패해 화면에 데이터가 뜨지 않는다).
+- 두 진입점 모두 같은 대시보드 파드로 연결되며, `window.API_BASE_URL`이 `/osmonitoring`으로 고정 주입되어 있어 어느 경로로 들어와도 API 프록시가 동일하게 동작한다 (`entrypoint.sh`가 index.html의 `window.API_BASE_URL = ''` 문자열을 치환).
+- UI는 `/ai/seoul`(k8s-cluster-tester) 기본 페이지 스타일 — 상단 **topbar + 수평 탭**(개요/노드/이벤트/예측/리포트), 라이트/다크 테마 자동 대응. 좌측 상단 **"OS Monitor"** 클릭 시 개요(메인)로 이동.
+- 최초 접속 시 우상단 **"🔑 API Key"** 버튼으로 API Key를 입력해야 클러스터/메트릭 데이터가 조회된다 (키 입력 전에는 모든 API 호출이 401/403으로 실패해 화면에 데이터가 뜨지 않는다).
 
 ## 헬스체크 및 모니터링 알림
 
@@ -116,8 +116,9 @@ make cov                # HTML 커버리지 리포트 (htmlcov/index.html)
 - **네임스페이스**: `os-monitor` (`deploy/base/kustomization.yaml`의 전역 `namespace` 필드)
 - `deploy/base` — 공통 매니페스트 (API/collector/dashboard Deployment, TimescaleDB StatefulSet, CronJob, HTTPRoute, PrometheusRule)
 - `deploy/overlays/{dev,prod}` — 환경별 Kustomize 오버레이
-- `deploy/argocd/application-prod.yaml` — ArgoCD Application CR (아직 클러스터에 ArgoCD 자체가 설치되어 있지 않음 — 현재는 `kubectl apply -k`로 수동 배포)
+- `deploy/argocd/` — ArgoCD Application(`application-prod.yaml`) + 서버 파라미터·서브패스 노출(`argocd-cmd-params-cm.yaml`, `proxy.yaml`, `httproute.yaml`, `README.md`). **ArgoCD는 클러스터에 설치·가동 중**이며 `os-monitor-prod` Application이 `deploy/overlays/prod`를 auto-sync(+selfHeal+prune)로 배포한다.
 - 이미지: Harbor(`registry.local.cloud:5000/os-monitor/{api,collector,dashboard}`)
+- ArgoCD UI: `https://test2.studiobasa.com/argocd/` (자세한 노출 구조는 `deploy/argocd/README.md`)
 
 ### 최초 배포 순서 (네임스페이스가 없는 상태에서)
 
@@ -132,19 +133,30 @@ kubectl create secret generic os-monitor-db-secret -n os-monitor \
 kubectl create secret generic os-monitor-api-secret -n os-monitor \
   --from-literal=API_KEY=<key>
 
-# 이미지 빌드·push (CI가 아직 동작하지 않으면 수동으로 — 아래 CI/CD 참고)
+# 이미지 빌드·push (아래 CI/CD 참고 — 이 서버에서 수동 빌드)
 bash scripts/build-push-images.sh
 
-kubectl apply -k deploy/base
+kubectl apply -k deploy/base   # 최초 1회. 이후 변경은 ArgoCD가 자동 반영
 ```
 
-이미지나 nginx 설정(`deploy/nginx.conf`)이 바뀐 뒤에는 `scripts/build-push-images.sh` 재실행 후 `kubectl rollout restart deployment/<name> -n os-monitor`가 필요하다 (`:latest` 태그라 재배포 없이는 새 이미지를 자동으로 당겨오지 않는다).
+### 변경 배포 흐름 (ArgoCD GitOps)
+
+```bash
+# 1) 이 서버에서 이미지 빌드·push (Harbor 로그인 필요)
+SHA=$(git rev-parse --short HEAD)
+docker build -f Dockerfile.dashboard -t registry.local.cloud:5000/os-monitor/dashboard:$SHA .
+docker push registry.local.cloud:5000/os-monitor/dashboard:$SHA
+
+# 2) deploy/overlays/prod/kustomization.yaml 의 해당 이미지 newTag 를 $SHA 로 갱신·커밋·push
+# 3) ArgoCD가 자동 동기화하여 롤아웃 (auto-sync + selfHeal)
+```
+
+`newTag`를 git SHA로 고정하므로 `:latest` 재배포 문제 없이 ArgoCD가 정확한 버전을 롤아웃한다.
 
 ## CI/CD
 
-- `.github/workflows/ci.yml` — PR 시 린트·테스트·이미지 빌드 검증
-- `.github/workflows/cd.yml` — main 머지 시 Harbor 빌드/푸시 + GitOps 이미지 태그 업데이트
-- Self-hosted runner는 클러스터 내 actions-runner-controller(ARC)로 운영하도록 설계되어 있으나, **현재 클러스터에는 ARC 컨트롤러만 설치되어 있고 실제 `AutoscalingRunnerSet`(러너 스케일셋)은 배포되어 있지 않다.** 그 결과 push된 워크플로우가 `queued` 상태로 멈춰 실행되지 않으므로, 러너가 준비되기 전까지는 `scripts/build-push-images.sh`로 수동 빌드·push해야 한다.
+- **GitHub Actions는 제거되었다.** (이전 `.github/workflows/{ci,cd}.yml` + actions-runner-controller(ARC) 자체호스팅 러너 구성은 삭제됨 — 러너 스케일셋 미배포로 워크플로우가 계속 `queued`에 멈추던 문제 + 미숙지 기술 제거 요청.)
+- 현재 파이프라인: **이 서버에서 수동 이미지 빌드·push → kustomize 태그 커밋 → ArgoCD 자동 배포**. 사내 Harbor(`registry.local.cloud:5000`)는 내부망이라 외부 러너로는 접근 불가하므로 빌드는 클러스터 접근이 가능한 이 서버에서 수행한다.
 
 ## 개발 하네스
 
