@@ -27,12 +27,16 @@ async def supplement_node(node_ip: str, node_name: str) -> dict:
             zombie_r = await conn.run("ps aux | awk '$8==\"Z\"' | wc -l")
             inode_r  = await conn.run("df -i / --output=iuse% 2>/dev/null | tail -1 | tr -d '%'")
             uptime_r = await conn.run("cat /proc/uptime | awk '{print $1}'")
+            distro_r = await conn.run(". /etc/os-release 2>/dev/null && echo \"$PRETTY_NAME\"")
+            kernel_r = await conn.run("uname -r")
 
         return {
             "cpu_cores":         int(cpu_r.stdout.strip() or 1),
             "processes_zombie":  int(zombie_r.stdout.strip() or 0),
             "inode_usage_ratio": float(inode_r.stdout.strip() or 0),
             "uptime_sec":        float(uptime_r.stdout.strip() or 0),
+            "os_distro":         distro_r.stdout.strip() or None,
+            "kernel_version":    kernel_r.stdout.strip() or None,
         }
     except Exception as e:
         logger.warning("SSH 보완 실패 %s (%s): %s", node_name, node_ip, e)

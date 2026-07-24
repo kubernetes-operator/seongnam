@@ -1,19 +1,19 @@
 """클러스터 관련 엔드포인트."""
 from fastapi import APIRouter, Depends
-from api.dependencies import get_pool, verify_api_key
+from api.dependencies import get_pool, verify_session
 from api.models import ApiResponse
 
 router = APIRouter()
 
 
-@router.get("", dependencies=[Depends(verify_api_key)])
+@router.get("", dependencies=[Depends(verify_session)])
 async def list_clusters(pool=Depends(get_pool)):
     from db.queries import query_clusters
     clusters = await query_clusters(pool)
     return ApiResponse.ok(clusters)
 
 
-@router.get("/{cluster_name}", dependencies=[Depends(verify_api_key)])
+@router.get("/{cluster_name}", dependencies=[Depends(verify_session)])
 async def get_cluster(cluster_name: str, pool=Depends(get_pool)):
     from db.queries import query_latest_metrics, query_events
     os_metrics  = await query_latest_metrics(pool, cluster_name)
@@ -25,7 +25,7 @@ async def get_cluster(cluster_name: str, pool=Depends(get_pool)):
     })
 
 
-@router.get("/{cluster_name}/nodes", dependencies=[Depends(verify_api_key)])
+@router.get("/{cluster_name}/nodes", dependencies=[Depends(verify_session)])
 async def list_nodes(cluster_name: str, pool=Depends(get_pool)):
     async with pool.acquire() as conn:
         rows = await conn.fetch(

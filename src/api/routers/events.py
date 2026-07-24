@@ -1,13 +1,13 @@
 """위기 이벤트 엔드포인트."""
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from api.dependencies import get_pool, verify_api_key
+from api.dependencies import get_pool, verify_session
 from api.models import ApiResponse
 
 router = APIRouter()
 
 
-@router.get("", dependencies=[Depends(verify_api_key)])
+@router.get("", dependencies=[Depends(verify_session)])
 async def list_events(
     cluster_name: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
@@ -20,7 +20,7 @@ async def list_events(
     return ApiResponse.ok(events, meta={"total": len(events)})
 
 
-@router.get("/{event_id}", dependencies=[Depends(verify_api_key)])
+@router.get("/{event_id}", dependencies=[Depends(verify_session)])
 async def get_event(event_id: int, pool=Depends(get_pool)):
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM events WHERE id = $1", event_id)
@@ -37,7 +37,7 @@ async def get_event(event_id: int, pool=Depends(get_pool)):
     return ApiResponse.ok(ev)
 
 
-@router.patch("/{event_id}/resolve", dependencies=[Depends(verify_api_key)])
+@router.patch("/{event_id}/resolve", dependencies=[Depends(verify_session)])
 async def resolve_event(event_id: int, pool=Depends(get_pool)):
     from db.queries import resolve_event as _resolve
     ok = await _resolve(pool, event_id)

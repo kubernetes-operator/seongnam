@@ -66,6 +66,23 @@ CREATE TABLE IF NOT EXISTS reports (
     file_path    TEXT,
     summary      JSONB
 );
+
+-- 로그인 사용자 (PBKDF2-HMAC-SHA256 해시 + per-user salt, 평문 저장 안 함)
+CREATE TABLE IF NOT EXISTS users (
+    username       TEXT PRIMARY KEY,
+    password_hash  TEXT NOT NULL,
+    salt           TEXT NOT NULL,
+    created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 세션 토큰 (로그인 시 발급, Bearer 로 전달)
+CREATE TABLE IF NOT EXISTS sessions (
+    token       TEXT PRIMARY KEY,
+    username    TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    expires_at  TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 """
 
 CONTINUOUS_AGGREGATE_SQL = """

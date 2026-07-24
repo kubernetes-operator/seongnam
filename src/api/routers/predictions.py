@@ -1,13 +1,13 @@
 """예측 데이터 엔드포인트."""
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
-from api.dependencies import get_pool, verify_api_key
+from api.dependencies import get_pool, verify_session
 from api.models import ApiResponse
 
 router = APIRouter()
 
 
-@router.get("/{cluster_name}", dependencies=[Depends(verify_api_key)])
+@router.get("/{cluster_name}", dependencies=[Depends(verify_session)])
 async def get_cluster_predictions(
     cluster_name: str,
     horizon: int = Query(30),
@@ -22,7 +22,7 @@ async def get_cluster_predictions(
     return ApiResponse.ok(cluster_preds)
 
 
-@router.get("/{cluster_name}/{node_name}", dependencies=[Depends(verify_api_key)])
+@router.get("/{cluster_name}/{node_name}", dependencies=[Depends(verify_session)])
 async def get_node_predictions(
     cluster_name: str,
     node_name: str,

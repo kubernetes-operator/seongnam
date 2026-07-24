@@ -3,13 +3,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
-from api.dependencies import verify_api_key
+from api.dependencies import verify_session
 from api.models import ApiResponse
 
 router = APIRouter()
 
 
-@router.get("", dependencies=[Depends(verify_api_key)])
+@router.get("", dependencies=[Depends(verify_session)])
 async def list_logs(
     node_name: Optional[str] = Query(None),
     priority: Optional[str] = Query(None, description="emerg/alert/crit/error/warning/notice/info/debug"),
@@ -22,13 +22,13 @@ async def list_logs(
     return ApiResponse.ok(lines, meta={"total": len(lines), "window_minutes": minutes})
 
 
-@router.get("/summary", dependencies=[Depends(verify_api_key)])
+@router.get("/summary", dependencies=[Depends(verify_session)])
 async def logs_summary(minutes: int = Query(60, ge=1, le=10080)):
     from analysis.log_service import summary
     return ApiResponse.ok(await summary(minutes))
 
 
-@router.get("/patterns", dependencies=[Depends(verify_api_key)])
+@router.get("/patterns", dependencies=[Depends(verify_session)])
 async def logs_patterns(
     node_name: Optional[str] = Query(None),
     minutes: int = Query(60, ge=1, le=10080),

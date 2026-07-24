@@ -2,13 +2,13 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
-from api.dependencies import get_pool, verify_api_key
+from api.dependencies import get_pool, verify_session
 from api.models import ApiResponse
 
 router = APIRouter()
 
 
-@router.get("/os/{cluster_name}/{node_name}", dependencies=[Depends(verify_api_key)])
+@router.get("/os/{cluster_name}/{node_name}", dependencies=[Depends(verify_session)])
 async def get_os_metrics(
     cluster_name: str,
     node_name: str,
@@ -27,14 +27,14 @@ async def get_os_metrics(
     return ApiResponse.ok(ts, meta={"cluster": cluster_name, "node": node_name, "metric": metric})
 
 
-@router.get("/summary/{cluster_name}", dependencies=[Depends(verify_api_key)])
+@router.get("/summary/{cluster_name}", dependencies=[Depends(verify_session)])
 async def get_summary(cluster_name: str, pool=Depends(get_pool)):
     from db.queries import query_latest_metrics
     os_m  = await query_latest_metrics(pool, cluster_name)
     return ApiResponse.ok({"cluster": cluster_name, "os": os_m})
 
 
-@router.get("/top", dependencies=[Depends(verify_api_key)])
+@router.get("/top", dependencies=[Depends(verify_session)])
 async def get_top_nodes(
     cluster_name: str = Query(...),
     metric: str = Query("cpu_usage_ratio"),

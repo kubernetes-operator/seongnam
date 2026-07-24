@@ -2,13 +2,13 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from api.dependencies import get_pool, verify_api_key
+from api.dependencies import get_pool, verify_session
 from api.models import ApiResponse, ReportGenerateRequest
 
 router = APIRouter()
 
 
-@router.get("", dependencies=[Depends(verify_api_key)])
+@router.get("", dependencies=[Depends(verify_session)])
 async def list_reports(
     report_type: Optional[str] = Query(None),
     cluster_name: Optional[str] = Query(None),
@@ -38,7 +38,7 @@ async def list_reports(
     )
 
 
-@router.get("/{report_id}", dependencies=[Depends(verify_api_key)])
+@router.get("/{report_id}", dependencies=[Depends(verify_session)])
 async def get_report(report_id: str, pool=Depends(get_pool)):
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -50,7 +50,7 @@ async def get_report(report_id: str, pool=Depends(get_pool)):
     return ApiResponse.ok(dict(row))
 
 
-@router.get("/{report_id}/download", dependencies=[Depends(verify_api_key)])
+@router.get("/{report_id}/download", dependencies=[Depends(verify_session)])
 async def download_report(report_id: str, fmt: str = Query("html"), pool=Depends(get_pool)):
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -63,7 +63,7 @@ async def download_report(report_id: str, fmt: str = Query("html"), pool=Depends
     return FileResponse(row["file_path"])
 
 
-@router.post("/generate", dependencies=[Depends(verify_api_key)])
+@router.post("/generate", dependencies=[Depends(verify_session)])
 async def generate_report(req: ReportGenerateRequest, pool=Depends(get_pool)):
     import logging
     from reports.generator import ReportGenerator

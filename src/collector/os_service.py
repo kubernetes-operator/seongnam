@@ -71,6 +71,8 @@ async def run_service() -> None:
                     nm["node_name"],
                     nm.get("node_ip", ""),
                     cpu_cores=cores,
+                    os_distro=supp.get("os_distro"),
+                    kernel_version=supp.get("kernel_version"),
                 )
 
                 for alert in check_thresholds(nm):

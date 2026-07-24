@@ -132,13 +132,18 @@ async def detect_patterns(node_name: str = "", minutes: int = 60) -> list[dict]:
     results = []
     for sig in LOG_SIGNATURES:
         logql_expr = f'{base} |~ "{sig["regex"]}"'
-        count_res = await _query_instant(f"sum(count_over_time({logql_expr} {'[' + str(minutes) + 'm]'}))")
-        count = 0
-        if count_res:
+        # 노드별로 집계하여 어느 노드에서 발생했는지 표기
+        count_res = await _query_instant(f"sum by (node_name) (count_over_time({logql_expr} {'[' + str(minutes) + 'm]'}))")
+        nodes = {}
+        for item in count_res:
+            nn = item.get("metric", {}).get("node_name", "")
             try:
-                count = int(float(count_res[0].get("value", [0, "0"])[1]))
+                c = int(float(item.get("value", [0, "0"])[1]))
             except (ValueError, IndexError):
-                count = 0
+                c = 0
+            if c > 0:
+                nodes[nn] = nodes.get(nn, 0) + c
+        count = sum(nodes.values())
         if count <= 0:
             continue
         samples = await _query_range(logql_expr, minutes, limit=3)
@@ -151,6 +156,8 @@ async def detect_patterns(node_name: str = "", minutes: int = 60) -> list[dict]:
             "label": sig["label"],
             "severity": sig["severity"],
             "count": count,
+            # 건수 많은 노드 순으로 정렬한 [{node, count}]
+            "nodes": [{"node": n, "count": c} for n, c in sorted(nodes.items(), key=lambda x: -x[1])],
             "samples": sample_lines[:3],
         })
     results.sort(key=lambda r: (r["severity"] != "critical", -r["count"]))

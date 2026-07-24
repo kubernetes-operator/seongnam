@@ -17,12 +17,14 @@
     <button class="tab" data-hash="#logs">로그</button>
     <button class="tab" data-hash="#predictions">예측</button>
     <button class="tab" data-hash="#reports">리포트</button>
+    <button class="tab" data-hash="#settings">설정</button>
   </nav>
   <div class="topbar-spacer"></div>
   <div class="topbar-tools">
     <select id="cluster-select" class="select-sm"><option>클러스터 로딩 중...</option></select>
     <button id="refresh-btn" class="btn-secondary btn-sm">↻ 새로고침</button>
-    <button id="api-key-btn" class="btn-secondary btn-sm">🔑 API Key</button>
+    <span id="current-user" class="muted"></span>
+    <button id="logout-btn" class="btn-secondary btn-sm" hidden>로그아웃</button>
   </div>
 </header>
 
@@ -30,17 +32,22 @@
   <div id="main-content"><div class="loading">불러오는 중…</div></div>
 </main>
 
-<!-- API Key 모달 -->
-<div id="api-key-modal" class="modal-overlay" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="api-key-modal-title">
-    <h3 id="api-key-modal-title" class="modal-title">API Key 설정</h3>
-    <form id="api-key-form">
+<!-- 로그인 화면 (미인증 시 표시) -->
+<div id="login-overlay" class="modal-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <h3 id="login-title" class="modal-title">OS Monitor 로그인</h3>
+    <form id="login-form">
       <div class="field">
-        <input type="password" id="api-key-input" placeholder="Bearer token" autocomplete="off">
+        <label class="muted">사용자명</label>
+        <input type="text" id="login-username" autocomplete="username" required>
       </div>
+      <div class="field">
+        <label class="muted">비밀번호</label>
+        <input type="password" id="login-password" autocomplete="current-password" required>
+      </div>
+      <div id="login-error" class="text-critical" style="font-size:13px;min-height:18px"></div>
       <div class="modal-actions">
-        <button type="button" id="api-key-cancel" class="btn-secondary btn-sm">취소</button>
-        <button type="submit" class="btn-primary btn-sm">저장</button>
+        <button type="submit" class="btn-primary btn-sm">로그인</button>
       </div>
     </form>
   </div>

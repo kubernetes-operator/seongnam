@@ -5,6 +5,7 @@ import { renderEvents }      from './pages/events.js'
 import { renderLogs }        from './pages/logs.js'
 import { renderPredictions } from './pages/predictions.js'
 import { renderReports }     from './pages/reports.js'
+import { renderSettings }    from './pages/settings.js'
 
 let currentCluster = ''
 
@@ -15,18 +16,32 @@ const PAGES = {
   '#logs':        renderLogs,
   '#predictions': renderPredictions,
   '#reports':     renderReports,
+  '#settings':    renderSettings,
 }
+
+const loginOverlay = document.getElementById('login-overlay')
+
+function showLogin() {
+  loginOverlay.hidden = false
+  document.getElementById('logout-btn').hidden = true
+  document.getElementById('current-user').textContent = ''
+}
+function hideLogin() { loginOverlay.hidden = true }
+
+// api.js 가 401 을 만나면 호출 → 로그인 화면으로
+window.__onAuthError = () => { showLogin() }
 
 async function navigate() {
   const hash = location.hash || '#dashboard'
   const fn   = PAGES[hash] || renderDashboard
 
-  // 탭 활성화
   document.querySelectorAll('#tabs .tab').forEach(el => {
     el.classList.toggle('active', el.dataset.hash === hash)
   })
 
-  await fn(currentCluster).catch(err => {
+  // 설정 페이지는 클러스터 불필요
+  const arg = hash === '#settings' ? undefined : currentCluster
+  await fn(arg).catch(err => {
     document.getElementById('main-content').innerHTML =
       `<div class="alert alert-danger">로드 실패: ${err.message}</div>`
   })
@@ -44,35 +59,54 @@ async function loadClusters() {
   }
 }
 
+// 인증 확인 후 앱 시작
+async function boot() {
+  const me = await API.auth.me().catch(() => null)
+  if (!me?.data?.username) { showLogin(); return }
+  hideLogin()
+  document.getElementById('current-user').textContent = '👤 ' + me.data.username
+  document.getElementById('logout-btn').hidden = false
+  await loadClusters()
+  await navigate()
+}
+
 // ── 탭/홈 내비게이션 ──
 document.querySelectorAll('#tabs .tab').forEach(btn => {
   btn.addEventListener('click', () => { location.hash = btn.dataset.hash })
 })
 document.getElementById('home-link').addEventListener('click', () => { location.hash = '#dashboard' })
-
 document.getElementById('cluster-select').addEventListener('change', e => {
   currentCluster = e.target.value
   navigate()
 })
 document.getElementById('refresh-btn').addEventListener('click', () => navigate())
 
-// ── API Key 모달 ──
-const modal = document.getElementById('api-key-modal')
-const openModal  = () => { document.getElementById('api-key-input').value = localStorage.getItem('api_key') || ''; modal.hidden = false }
-const closeModal = () => { modal.hidden = true }
-document.getElementById('api-key-btn').addEventListener('click', openModal)
-document.getElementById('api-key-cancel').addEventListener('click', closeModal)
-modal.addEventListener('click', e => { if (e.target === modal) closeModal() })
-document.getElementById('api-key-form').addEventListener('submit', e => {
+// ── 로그인 / 로그아웃 ──
+document.getElementById('login-form').addEventListener('submit', async e => {
   e.preventDefault()
-  localStorage.setItem('api_key', document.getElementById('api-key-input').value)
-  closeModal()
-  loadClusters().then(navigate)
+  const err = document.getElementById('login-error')
+  err.textContent = ''
+  try {
+    const res = await API.auth.login(
+      document.getElementById('login-username').value,
+      document.getElementById('login-password').value,
+    )
+    localStorage.setItem('session_token', res.data.token)
+    document.getElementById('login-password').value = ''
+    await boot()
+  } catch {
+    err.textContent = '사용자명 또는 비밀번호가 올바르지 않습니다.'
+  }
+})
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  await API.auth.logout().catch(() => {})
+  localStorage.removeItem('session_token')
+  showLogin()
 })
 
 window.addEventListener('hashchange', navigate)
 
-// 자동 새로고침 30초
-setInterval(() => navigate(), 30000)
+// 자동 새로고침 30초 (로그인 상태에서만)
+setInterval(() => { if (loginOverlay.hidden) navigate() }, 30000)
 
-loadClusters().then(navigate)
+boot()

@@ -4,33 +4,43 @@
 const BASE = (window.API_BASE_URL || '').replace(/\/$/, '')
 
 function _headers() {
-  const key = localStorage.getItem('api_key') || ''
-  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }
+  const token = localStorage.getItem('session_token') || ''
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+}
+
+function _check(res) {
+  if (res.status === 401) {
+    // 세션 만료/미인증 → 로그인 화면으로
+    localStorage.removeItem('session_token')
+    if (typeof window.__onAuthError === 'function') window.__onAuthError()
+    throw new Error('인증이 필요합니다')
+  }
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  return res.json()
 }
 
 async function _get(path) {
-  const res = await fetch(`${BASE}${path}`, { headers: _headers() })
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-  return res.json()
+  return _check(await fetch(`${BASE}${path}`, { headers: _headers() }))
 }
 
 async function _post(path, body) {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: _headers(),
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-  return res.json()
+  return _check(await fetch(`${BASE}${path}`, {
+    method: 'POST', headers: _headers(), body: JSON.stringify(body || {}),
+  }))
 }
 
 async function _patch(path) {
-  const res = await fetch(`${BASE}${path}`, { method: 'PATCH', headers: _headers() })
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-  return res.json()
+  return _check(await fetch(`${BASE}${path}`, { method: 'PATCH', headers: _headers() }))
 }
 
 export const API = {
+  auth: {
+    login:  (username, password) => _post('/api/v1/auth/login', { username, password }),
+    logout: ()                   => _post('/api/v1/auth/logout'),
+    me:     ()                   => _get('/api/v1/auth/me'),
+    changePassword: (current_password, new_password) =>
+      _post('/api/v1/auth/change-password', { current_password, new_password }),
+  },
   clusters:    { list: () => _get('/api/v1/clusters') },
   cluster:     { get: (n) => _get(`/api/v1/clusters/${n}`) },
   nodes:       { list: (n) => _get(`/api/v1/clusters/${n}/nodes`) },

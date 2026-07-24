@@ -70,10 +70,13 @@ export async function renderLogs(cluster) {
     const patterns = pats?.data || []
     document.getElementById('log-patterns').innerHTML = patterns.length ? `
       <div class="table-wrap"><table class="findings-table">
-        <thead><tr><th>심각도</th><th>유형</th><th>건수</th><th>샘플</th></tr></thead>
+        <thead><tr><th>심각도</th><th>유형</th><th>노드</th><th>건수</th><th>샘플</th></tr></thead>
         <tbody>${patterns.map(p => `<tr>
           <td><span class="sev-pill ${p.severity === 'critical' ? 'sev-critical' : 'sev-warning'}">${p.severity}</span></td>
           <td>${p.label}</td>
+          <td>${(p.nodes && p.nodes.length)
+            ? p.nodes.map(n => `<span class="badge" style="background:var(--card-bg);border:1px solid var(--border);color:var(--fg);margin:1px">${n.node || '?'} <span class="muted">${n.count}</span></span>`).join(' ')
+            : '<span class="muted">-</span>'}</td>
           <td class="${p.severity === 'critical' ? 'text-critical fw-bold' : 'text-warning'}">${p.count}</td>
           <td><code style="font-size:11px">${(p.samples[0] || '').replace(/</g, '&lt;')}</code></td>
         </tr>`).join('')}</tbody>
