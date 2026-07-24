@@ -10,6 +10,7 @@ export async function renderDashboard(cluster) {
 
   main.innerHTML = `
     <h5 class="mb-3">클러스터 요약 — <span class="text-primary">${cluster}</span></h5>
+    <div id="action-items" class="mb-4"></div>
     <div id="gauges" class="row g-3 mb-4"></div>
     <div class="row g-3">
       <div class="col-md-8"><canvas id="trend-chart" height="120"></canvas></div>
@@ -17,10 +18,14 @@ export async function renderDashboard(cluster) {
     </div>
   `
 
-  const [summary, top] = await Promise.all([
+  const [summary, top, events] = await Promise.all([
     API.metrics.summary(cluster),
     API.metrics.top(cluster, 'cpu_usage_ratio', 5),
-  ]).catch(() => [{}, []])
+    API.events.list(cluster, false, 50),
+  ]).catch(() => [{}, [], { data: [] }])
+
+  // 조치 필요 항목 — 미해결 위기 이벤트 + 임계값 초과 노드
+  renderActionItems(events, top)
 
   // Gauges — 클러스터 평균 (API는 배열로 반환)
   const nodeList = summary?.data?.os || []
@@ -53,4 +58,84 @@ export async function renderDashboard(cluster) {
       `).join('')}
     </div>
   `
+}
+
+// 조치 필요 항목 패널 — 클릭 시 해당 메뉴로 이동
+function renderActionItems(events, top) {
+  const el = document.getElementById('action-items')
+  if (!el) return
+
+  const evtList = (events?.data || []).filter(ev => !ev.resolved_at)
+  const critNodes = (top?.data || []).filter(n => n.avg_value >= 80)
+
+  const items = []
+
+  // 1) 미해결 위기 이벤트 → 이벤트 메뉴로 이동 후 상세 열기
+  evtList.forEach(ev => {
+    const d = typeof ev.details === 'string' ? JSON.parse(ev.details || '{}') : (ev.details || {})
+    const sev = ev.severity || 'warning'
+    items.push({
+      icon: sev === 'critical' ? '🔴' : '🟠',
+      sevClass: sev === 'critical' ? 'danger' : 'warning',
+      label: sev,
+      title: `${d.crisis_type || ev.event_type || '위기 이벤트'} — ${ev.node_name || ''}`,
+      time: String(ev.created_at || '').slice(0, 16),
+      onclick: `window.goToEvent(${ev.id})`,
+    })
+  })
+
+  // 2) 임계값 초과 노드 → 노드 메뉴로 이동
+  critNodes.forEach(n => {
+    const crit = n.avg_value >= 90
+    items.push({
+      icon: crit ? '🔴' : '🟠',
+      sevClass: crit ? 'danger' : 'warning',
+      label: crit ? 'critical' : 'warning',
+      title: `${n.node_name} CPU ${n.avg_value?.toFixed(1)}%`,
+      time: '리소스 임계값 초과',
+      onclick: `window.goToNodes()`,
+    })
+  })
+
+  if (!items.length) {
+    el.innerHTML = `
+      <div class="card border-success">
+        <div class="card-body py-2 text-success small">✅ 조치가 필요한 항목이 없습니다.</div>
+      </div>`
+    return
+  }
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+        <span>⚠️ 조치 필요 항목</span>
+        <span class="badge bg-danger">${items.length}</span>
+      </div>
+      <div class="list-group list-group-flush">
+        ${items.map(it => `
+          <button type="button"
+            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            onclick="${it.onclick}">
+            <span>
+              <span class="me-2">${it.icon}</span>
+              <span class="badge bg-${it.sevClass} me-2">${it.label}</span>
+              ${it.title}
+            </span>
+            <small class="text-muted">${it.time} ›</small>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `
+}
+
+// 이벤트 항목 클릭 → 이벤트 메뉴로 이동하며 해당 이벤트 상세를 자동으로 연다
+window.goToEvent = (id) => {
+  window.__openEventId = id
+  location.hash = '#events'
+}
+
+// 노드 항목 클릭 → 노드 메뉴로 이동
+window.goToNodes = () => {
+  location.hash = '#nodes'
 }

@@ -70,5 +70,13 @@ export async function renderEvents(cluster) {
   }
 
   document.getElementById('show-resolved').addEventListener('change', loadEvents)
-  loadEvents()
+  await loadEvents()
+
+  // 대시보드 '조치 필요 항목'에서 넘어온 경우 해당 이벤트 상세를 자동으로 연다
+  if (window.__openEventId != null) {
+    const id = window.__openEventId
+    window.__openEventId = null
+    await window.showEvent(id)
+    document.getElementById('event-detail')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
 }
