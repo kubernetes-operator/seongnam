@@ -8,7 +8,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from api.dependencies import startup, shutdown
-from api.routers import clusters, metrics, events, reports, predictions
+from api.routers import clusters, metrics, events, reports, predictions, logs
 from db.pool import db_conn
 
 limiter = Limiter(key_func=get_remote_address)
@@ -43,6 +43,7 @@ app.include_router(metrics.router,     prefix="/api/v1/metrics",      tags=["met
 app.include_router(events.router,      prefix="/api/v1/events",        tags=["events"])
 app.include_router(reports.router,     prefix="/api/v1/reports",       tags=["reports"])
 app.include_router(predictions.router, prefix="/api/v1/predictions",   tags=["predictions"])
+app.include_router(logs.router,        prefix="/api/v1/logs",          tags=["logs"])
 
 
 @app.get("/healthz", tags=["health"])

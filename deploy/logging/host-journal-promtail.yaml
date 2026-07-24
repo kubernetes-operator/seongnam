@@ -1,0 +1,81 @@
+# 호스트 systemd journal → Loki 수집기 (OS Monitor 로그 분석용)
+#
+# 클러스터 기본 promtail(loki-stack-promtail)은 파드(컨테이너) 로그만 수집하며
+# 호스트 OS 로그(journald/커널/시스템)는 수집하지 않는다. 이 전용 DaemonSet 이
+# 각 노드의 영구 저널(/var/log/journal)을 읽어 Loki 에 job="systemd-journal" 로
+# 전송한다. → src/analysis 의 로그 분석 기능이 이 스트림을 조회한다.
+#
+# 배포: kubectl apply -f deploy/logging/host-journal-promtail.yaml
+# (logging 네임스페이스 — 공유 로깅 스택과 동거, 우리 ArgoCD 앱 관리 대상 아님)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: os-journal-promtail
+  namespace: logging
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+    positions:
+      filename: /run/promtail/positions-journal.yaml
+    clients:
+      - url: http://loki-stack.logging.svc.cluster.local:3100/loki/api/v1/push
+    scrape_configs:
+      - job_name: systemd-journal
+        journal:
+          path: /var/log/journal
+          max_age: 12h
+          labels:
+            job: systemd-journal
+        relabel_configs:
+          - source_labels: ['__journal__hostname']
+            target_label: node_name
+          - source_labels: ['__journal__systemd_unit']
+            target_label: unit
+          - source_labels: ['__journal_priority_keyword']
+            target_label: priority
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: os-journal-promtail
+  namespace: logging
+  labels:
+    app: os-journal-promtail
+spec:
+  selector:
+    matchLabels:
+      app: os-journal-promtail
+  template:
+    metadata:
+      labels:
+        app: os-journal-promtail
+    spec:
+      # 모든 노드(컨트롤플레인 포함)에서 실행하여 전 노드 로그 수집
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: promtail
+          image: docker.io/grafana/promtail:3.5.1
+          args:
+            - -config.file=/etc/promtail/promtail.yaml
+          securityContext:
+            runAsUser: 0            # 저널 파일(root:systemd-journal, 0640) 읽기용
+          resources:
+            requests: { cpu: 20m, memory: 48Mi }
+            limits:   { cpu: 100m, memory: 128Mi }
+          volumeMounts:
+            - { name: config,   mountPath: /etc/promtail }
+            - { name: journal,  mountPath: /var/log/journal, readOnly: true }
+            - { name: machineid, mountPath: /etc/machine-id, readOnly: true }
+            - { name: positions, mountPath: /run/promtail }
+      volumes:
+        - name: config
+          configMap: { name: os-journal-promtail }
+        - name: journal
+          hostPath: { path: /var/log/journal }
+        - name: machineid
+          hostPath: { path: /etc/machine-id }
+        - name: positions
+          emptyDir: {}

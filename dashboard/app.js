@@ -2,6 +2,7 @@ import { API } from './api.js'
 import { renderDashboard }   from './pages/dashboard.js'
 import { renderNodes }       from './pages/nodes.js'
 import { renderEvents }      from './pages/events.js'
+import { renderLogs }        from './pages/logs.js'
 import { renderPredictions } from './pages/predictions.js'
 import { renderReports }     from './pages/reports.js'
 
@@ -11,6 +12,7 @@ const PAGES = {
   '#dashboard':   renderDashboard,
   '#nodes':       renderNodes,
   '#events':      renderEvents,
+  '#logs':        renderLogs,
   '#predictions': renderPredictions,
   '#reports':     renderReports,
 }

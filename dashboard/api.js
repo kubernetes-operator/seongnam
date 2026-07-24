@@ -52,4 +52,13 @@ export const API = {
     cluster:   (c)     => _get(`/api/v1/predictions/${c}`),
     node:      (c, n)  => _get(`/api/v1/predictions/${c}/${n}`),
   },
+  logs: {
+    list:     ({node='', priority='', q='', minutes=60, limit=100}={}) =>
+      _get(`/api/v1/logs?minutes=${minutes}&limit=${limit}` +
+        (node ? `&node_name=${encodeURIComponent(node)}` : '') +
+        (priority ? `&priority=${priority}` : '') +
+        (q ? `&q=${encodeURIComponent(q)}` : '')),
+    summary:  (minutes=60)             => _get(`/api/v1/logs/summary?minutes=${minutes}`),
+    patterns: (node='', minutes=60)    => _get(`/api/v1/logs/patterns?minutes=${minutes}` + (node ? `&node_name=${encodeURIComponent(node)}` : '')),
+  },
 }

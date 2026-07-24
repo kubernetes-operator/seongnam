@@ -345,5 +345,52 @@ def report(
         console.print("[red]리포트 생성 실패[/]")
 
 
+# ── logs ───────────────────────────────────────────────────────────────────
+
+@app.command()
+def logs(
+    node: str = typer.Option("", help="노드 이름(비우면 전체)"),
+    priority: str = typer.Option("", help="error/warning/notice/info 등"),
+    search: str = typer.Option("", help="본문 검색어"),
+    minutes: int = typer.Option(60, help="조회 기간(분)"),
+    limit: int = typer.Option(50, help="최대 라인 수"),
+):
+    """호스트 시스템 로그(systemd journal)를 조회하고 이상 시그니처를 탐지합니다."""
+    async def _run():
+        from analysis.log_service import recent_logs, detect_patterns
+        pats = await detect_patterns(node, minutes)
+        lines = await recent_logs(node, priority, search, minutes, limit)
+        return pats, lines
+
+    pats, lines = asyncio.run(_run())
+
+    if pats:
+        pt = Table(title=f"탐지된 이상 시그니처 (최근 {minutes}분)", box=box.SIMPLE)
+        pt.add_column("심각도", style="bold")
+        pt.add_column("유형")
+        pt.add_column("건수", justify="right")
+        for p in pats:
+            pt.add_row(
+                Text(p["severity"], style="red" if p["severity"] == "critical" else "yellow"),
+                p["label"],
+                str(p["count"]),
+            )
+        console.print(pt)
+    else:
+        console.print("[green]✅ 탐지된 이상 시그니처 없음[/]")
+
+    t = Table(title=f"최근 시스템 로그 — {node or '전체 노드'}", box=box.SIMPLE)
+    t.add_column("시각", style="dim")
+    t.add_column("노드", style="cyan")
+    t.add_column("우선순위")
+    t.add_column("메시지")
+    for ln in lines:
+        pr = ln.get("priority", "")
+        style = "red" if pr in ("emerg", "alert", "crit", "error") else "yellow" if pr == "warning" else "dim"
+        ts = datetime.fromtimestamp(ln["ts"], tz=timezone.utc).astimezone().strftime("%m-%d %H:%M:%S")
+        t.add_row(ts, ln.get("node_name", ""), Text(pr, style=style), (ln.get("message", "") or "")[:120])
+    console.print(t)
+
+
 if __name__ == "__main__":
     app()
