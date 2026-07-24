@@ -2,7 +2,6 @@
 import asyncio
 import logging
 import os
-import sys
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +70,9 @@ async def run_service() -> None:
                     nm["node_name"],
                     nm.get("node_ip", ""),
                     cpu_cores=cores,
-                    os_distro=supp.get("os_distro"),
-                    kernel_version=supp.get("kernel_version"),
+                    # OS/커널은 Prometheus(node_os_info/node_uname_info) 우선, SSH 보완은 fallback
+                    os_distro=nm.get("os_distro") or supp.get("os_distro"),
+                    kernel_version=nm.get("kernel_version") or supp.get("kernel_version"),
                 )
 
                 for alert in check_thresholds(nm):

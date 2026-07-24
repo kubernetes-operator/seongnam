@@ -73,6 +73,23 @@ class PrometheusCollector:
                     result[instance] = 0.0
         return result
 
+    async def query_label(self, promql: str, label: str) -> dict[str, str]:
+        """info 메트릭의 라벨 값을 {instance: label_value} 로 반환 (node_os_info 등)."""
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{self.url}/api/v1/query", params={"query": promql})
+                resp.raise_for_status()
+                data = resp.json()
+        except Exception:
+            return {}
+        out = {}
+        for item in data.get("data", {}).get("result", []):
+            instance = item["metric"].get("instance", "")
+            val = item["metric"].get(label)
+            if instance and val:
+                out[instance] = val
+        return out
+
     async def collect_all(self, cluster_name: str = "playce-k8s") -> dict:
         """모든 노드 메트릭을 병렬로 수집한다."""
         collected_at = datetime.now(timezone.utc).isoformat()
@@ -82,6 +99,10 @@ class PrometheusCollector:
             return_exceptions=True,
         )
         metric_data = dict(zip(PROMQL.keys(), results))
+
+        # OS 배포판/커널 — node_exporter info 메트릭에서 라벨로 추출
+        os_info     = await self.query_label("node_os_info", "pretty_name")
+        kernel_info = await self.query_label("node_uname_info", "release")
 
         node_metrics = []
         for instance, node_name in NODE_MAP.items():
@@ -116,6 +137,8 @@ class PrometheusCollector:
                         "load15":      round(_safe(metric_data["load15"], instance), 2),
                         "load_per_core": round(load1, 2),  # SSH 보완 후 업데이트됨
                     },
+                    "os_distro":      os_info.get(instance),
+                    "kernel_version": kernel_info.get(instance),
                     "collection_status": "success",
                 })
             except Exception as e:
