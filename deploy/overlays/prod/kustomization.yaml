@@ -8,11 +8,11 @@ bases:
 
 images:
   - name: registry.local.cloud:5000/os-monitor/api
-    newTag: "latest"
+    newTag: "9f0a810"
   - name: registry.local.cloud:5000/os-monitor/collector
     newTag: "latest"
   - name: registry.local.cloud:5000/os-monitor/dashboard
-    newTag: "fbfbf51"
+    newTag: "9f0a810"
 
 patches:
   - patch: |-
