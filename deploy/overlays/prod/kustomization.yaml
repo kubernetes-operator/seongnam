@@ -12,7 +12,7 @@ images:
   - name: registry.local.cloud:5000/os-monitor/collector
     newTag: "latest"
   - name: registry.local.cloud:5000/os-monitor/dashboard
-    newTag: "latest"
+    newTag: "ffdccef"
 
 patches:
   - patch: |-
