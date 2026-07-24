@@ -60,7 +60,7 @@ Base OS 상태만 다룬다. **Kubernetes 리소스 자체(파드/디플로이�
   CronJob:  predict(매일 02:30)   report-daily(매일 01:00)
 ```
 
-- **메트릭**: `os_collector`가 기존 Prometheus(Node Exporter)에 **PromQL**로 질의 → 새 DaemonSet 없이 CPU/Mem/Disk/Net/Load 수집. Prometheus에 없는 항목(inode, 좀비 프로세스, uptime, 코어 수)은 `os_ssh`가 `kwlee@<node-ip>` SSH로 보완. `os_service`가 이를 60초마다 합쳐 TimescaleDB에 적재하고 임계값을 검사한다.
+- **메트릭**: `os_collector`가 기존 Prometheus(Node Exporter)에 **PromQL**로 질의 → 새 DaemonSet 없이 CPU/Mem/Disk/Net/Load 수집. OS 배포판·커널은 `node_os_info`(pretty_name)·`node_uname_info`(release) info 메트릭의 라벨에서 추출. Prometheus에 없는 항목(inode, 좀비 프로세스, uptime, 코어 수)은 `os_ssh`가 `kwlee@<node-ip>` SSH로 보완(SSH 키 미제공 환경에서는 이 보완만 생략됨). `os_service`가 이를 60초마다 합쳐 TimescaleDB에 적재하고 임계값을 검사한다.
 - **로그**: 전용 `os-journal-promtail` DaemonSet이 각 노드의 영구 저널(`/var/log/journal`)을 읽어 Loki로 전송(`job="systemd-journal"`). `log_service`가 LogQL로 조회·요약·시그니처 탐지하고, `crisis_engine`은 위기 발생 시 관련 로그를 증거로 첨부한다. (로그는 Loki 자체 보존을 사용하며 TimescaleDB에 중복 저장하지 않는다.)
 - **저장**: 메트릭 시계열은 TimescaleDB 하이퍼테이블 + hourly 연속 집계. 로그는 Loki.
 - **제공**: FastAPI가 위 데이터를 REST로 노출하고, CLI·웹 대시보드·리포트가 이를 소비한다.
@@ -108,9 +108,10 @@ scripts/        이미지 빌드·push 헬퍼 스크립트
 | `/api/v1/reports` | 리포트 생성/다운로드 |
 | `/api/v1/predictions` | 예측 데이터 조회 |
 | `/api/v1/logs` | 시스템 로그 조회(`/`), 요약(`/summary`), 이상 시그니처 탐지(`/patterns`) — Loki(systemd journal) 기반 |
+| `/api/v1/auth` | 로그인(`/login`), 로그아웃(`/logout`), 현재 사용자(`/me`), 비밀번호 변경(`/change-password`) |
 | `/healthz` | 헬스체크 — TimescaleDB에 `SELECT 1`을 실제로 실행해 DB 연결까지 확인한다 (실패 시 503). Kubernetes liveness/readiness probe와 Prometheus 알림이 이 응답에 의존한다. |
 
-인증은 API Key(Bearer 토큰), CORS/Rate limiting 적용.
+**인증**: 사용자명+비밀번호 로그인 → 세션 토큰(Bearer). 비밀번호는 PBKDF2-HMAC-SHA256 + per-user salt로 `users` 테이블에 저장(평문 없음), 세션은 `sessions` 테이블. 최초 기동 시 기본 관리자 **`admin` / `password`** 시드(⚠️ **즉시 변경 필수** — 설정 탭 또는 `ADMIN_USERNAME`/`ADMIN_PASSWORD` env로 재정의). CORS/Rate limiting 적용.
 
 ## CLI 명령어
 
@@ -130,8 +131,8 @@ scripts/        이미지 빌드·push 헬퍼 스크립트
 - **NodePort**: 클러스터 노드 IP + `:30605` (구성에 따라 다를 수 있음, `deploy/base/dashboard/deployment.yaml`/Service 참고)
 - **Gateway API**: `https://test2.studiobasa.com/osmonitoring/` (`deploy/base/dashboard/httproute.yaml`, 클러스터의 공용 nginx Gateway에 붙는다)
 - 두 진입점 모두 같은 대시보드 파드로 연결되며, `window.API_BASE_URL`이 `/osmonitoring`으로 고정 주입되어 있어 어느 경로로 들어와도 API 프록시가 동일하게 동작한다 (`entrypoint.sh`가 index.html의 `window.API_BASE_URL = ''` 문자열을 치환).
-- UI는 `/ai/seoul`(k8s-cluster-tester) 기본 페이지 스타일 — 상단 **topbar + 수평 탭**(개요/노드/이벤트/예측/리포트), 라이트/다크 테마 자동 대응. 좌측 상단 **"OS Monitor"** 클릭 시 개요(메인)로 이동.
-- 최초 접속 시 우상단 **"🔑 API Key"** 버튼으로 API Key를 입력해야 클러스터/메트릭 데이터가 조회된다 (키 입력 전에는 모든 API 호출이 401/403으로 실패해 화면에 데이터가 뜨지 않는다).
+- UI는 `/ai/seoul`(k8s-cluster-tester) 기본 페이지 스타일 — 상단 **topbar + 수평 탭**(개요/노드/이벤트/로그/예측/리포트/설정), 라이트/다크 테마 자동 대응. 좌측 상단 **"OS Monitor"** 클릭 시 개요(메인)로 이동.
+- 최초 접속 시 **로그인 화면**에서 사용자명+비밀번호 입력(기본 `admin`/`password` — 즉시 변경). 로그인 후 세션 토큰이 발급되며, 우상단에 현재 사용자와 **로그아웃** 버튼이 표시된다. **설정** 탭에서 비밀번호를 변경할 수 있다(변경 시 기존 세션 전부 무효화 → 재로그인).
 
 ## 시스템 로그 분석 (Loki / systemd journal)
 
@@ -232,5 +233,7 @@ docker push registry.local.cloud:5000/os-monitor/dashboard:$SHA
 | 2026-07-24 | **ArgoCD 클러스터 설치·가동**, `https://test2.studiobasa.com/argocd/` 노출(서브패스 base-href 교정용 nginx 프록시 포함). |
 | 2026-07-24 | **대시보드 UI 전면 재설계** — Bootstrap 제거, `/ai/seoul`(k8s-cluster-tester) 기본 페이지 스타일(topbar+탭, 라이트/다크 테마) 도입. |
 | 2026-07-24 | **Linux 시스템 로그 수집·분석 추가** — 호스트 systemd journal → Loki(전용 promtail), `log_service`(요약·이상 시그니처 9종), `/api/v1/logs*`, 대시보드 "로그" 탭, CLI `monitor logs`. |
+| 2026-07-24 | **인증을 사용자명+비밀번호 로그인 체계로 교체**(기존 단일 API Key) — `/api/v1/auth`, `users`/`sessions` 테이블, 세션 토큰, 대시보드 로그인 화면·설정(비밀번호 변경) 탭. 기본 `admin`/`password` 시드. |
+| 2026-07-24 | 노드 탭 **OS/커널 표시 수정** — `node_os_info`/`node_uname_info`에서 수집(수집기 Pod의 SSH 인증 불가로 SSH 보완이 동작하지 않던 문제 우회). 로그 이상 시그니처에 **노드별 발생 건수 표기** 추가. |
 
 > 하네스(에이전트/스킬) 구성 변경 이력은 `CLAUDE.md`의 변경 이력 표를 참고.
