@@ -8,11 +8,11 @@ bases:
 
 images:
   - name: registry.local.cloud:5000/os-monitor/api
-    newTag: "869d264"
+    newTag: "ad7a566"
   - name: registry.local.cloud:5000/os-monitor/collector
-    newTag: "bfda328"
+    newTag: "ad7a566"
   - name: registry.local.cloud:5000/os-monitor/dashboard
-    newTag: "869d264"
+    newTag: "ad7a566"
 
 patches:
   - patch: |-
