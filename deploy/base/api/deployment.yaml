@@ -13,6 +13,13 @@ spec:
       labels:
         app: os-monitor-api
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: os-monitor-api
       hostAliases:
         - ip: "192.168.77.100"
           hostnames: ["registry.local.cloud"]
