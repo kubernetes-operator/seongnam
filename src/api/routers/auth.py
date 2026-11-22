@@ -39,8 +39,9 @@ async def logout(credentials: HTTPAuthorizationCredentials = Security(_bearer), 
 
 
 @router.get("/me")
-async def me(user=Depends(verify_session)):
-    return ApiResponse.ok({"username": user})
+async def me(user=Depends(verify_session), pool=Depends(get_pool)):
+    from api.access import summary
+    return ApiResponse.ok(await summary(pool,user))
 
 
 @router.post("/change-password")
@@ -48,3 +49,51 @@ async def change_pw(body: ChangePasswordRequest, user=Depends(verify_session), p
     from api.auth import change_password
     await change_password(pool, user, body.current_password, body.new_password)
     return ApiResponse.ok({"changed": True})
+
+
+class UIConfirmedPassword(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: str
+
+class UICreateUser(BaseModel):
+    username: str
+    password: str
+    role: str = 'viewer'
+    pages: list[str] = []
+
+class UIUpdateUser(BaseModel):
+    role: str | None = None
+    pages: list[str] | None = None
+    password: str | None = None
+
+@router.get('/ui/session')
+async def ui_session(user=Depends(verify_session),pool=Depends(get_pool)):
+    from api.access import summary
+    return await summary(pool,user)
+
+@router.post('/ui/password')
+async def ui_password(body:UIConfirmedPassword,user=Depends(verify_session),pool=Depends(get_pool)):
+    if body.new_password!=body.confirm_password:
+        raise HTTPException(400,'새 비밀번호가 일치하지 않습니다')
+    from api.auth import change_password
+    await change_password(pool,user,body.current_password,body.new_password)
+    return {'ok':True,'reauthenticate':True}
+
+@router.get('/ui/users')
+async def ui_users(user=Depends(verify_session),pool=Depends(get_pool)):
+    from api.access import users
+    return await users(pool)
+
+@router.post('/ui/users')
+async def ui_create_user(body:UICreateUser,user=Depends(verify_session),pool=Depends(get_pool)):
+    from api.access import create
+    return await create(pool,body.username,body.password,body.role,body.pages)
+
+@router.patch('/ui/users/{username}')
+async def ui_update_user(username:str,body:UIUpdateUser,user=Depends(verify_session),pool=Depends(get_pool)):
+    from api.access import update
+    changes=body.model_dump(exclude_unset=True)
+    if any(value is None for value in changes.values()):
+        raise HTTPException(400,'변경 값은 null일 수 없습니다')
+    return await update(pool,username,changes)

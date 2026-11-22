@@ -8,6 +8,7 @@ import { renderReports }     from './pages/reports.js'
 import { renderSettings }    from './pages/settings.js'
 
 let currentCluster = ''
+let allowedPages = null
 
 const PAGES = {
   '#dashboard':   renderDashboard,
@@ -32,7 +33,12 @@ function hideLogin() { loginOverlay.hidden = true }
 window.__onAuthError = () => { showLogin() }
 
 async function navigate() {
-  const hash = location.hash || '#dashboard'
+  if (!loginOverlay.hidden) return
+  let hash = location.hash || '#dashboard'
+  if (allowedPages && !allowedPages.includes(hash.slice(1))) {
+    hash = '#' + (allowedPages.find(p => PAGES['#' + p]) || 'settings')
+    history.replaceState(null, '', hash)
+  }
   const fn   = PAGES[hash] || renderDashboard
 
   document.querySelectorAll('#tabs .tab').forEach(el => {
@@ -63,10 +69,12 @@ async function loadClusters() {
 async function boot() {
   const me = await API.auth.me().catch(() => null)
   if (!me?.data?.username) { showLogin(); return }
+  allowedPages = Array.isArray(me.data.pages) ? me.data.pages : null
+  document.querySelectorAll('#tabs .tab').forEach(tab => { tab.hidden = !!allowedPages && !allowedPages.includes(tab.dataset.hash.slice(1)) })
   hideLogin()
   document.getElementById('current-user').textContent = '👤 ' + me.data.username
   document.getElementById('logout-btn').hidden = false
-  await loadClusters()
+  if (!allowedPages || allowedPages.some(p => ['dashboard','nodes','events','predictions','reports'].includes(p))) await loadClusters()
   await navigate()
 }
 
