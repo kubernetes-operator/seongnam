@@ -1,0 +1,225 @@
+<title>OS Monitor 브로슈어</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: 계측기 패널 느낌의 히어로(노드 8대 상태 스트립) → 가치 3개 → 기능 그리드 → 작동 순서 → 사양 → 도입 절차 */
+:root{
+  --bg:#f4f7f6; --surface:#ffffff; --fg:#122120; --muted:#566765; --line:#d6e0de;
+  --panel:#0c2b28; --panel-fg:#e6f2f0; --panel-muted:#8fb3ad; --panel-line:#1f4743;
+  --accent:#0e6e66; --signal:#2fb7a6; --accent-soft:#e0f0ed;
+  --ok:#22c55e; --warn:#f59e0b; --crit:#ef4444;
+  --font-display:"Space Grotesk","IBM Plex Sans KR",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1110; --surface:#121b1a; --fg:#e3ecea; --muted:#93a6a3; --line:#25322f;
+  --panel:#071b19; --panel-fg:#e6f2f0; --panel-muted:#86a9a3; --panel-line:#1a3a36;
+  --accent:#4fc1b4; --signal:#4fd1bf; --accent-soft:#14302c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1110; --surface:#121b1a; --fg:#e3ecea; --muted:#93a6a3; --line:#25322f;
+  --panel:#071b19; --panel-fg:#e6f2f0; --panel-muted:#86a9a3; --panel-line:#1a3a36;
+  --accent:#4fc1b4; --signal:#4fd1bf; --accent-soft:#14302c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.7;margin:0}
+.band{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.in{max-width:1080px;margin:0 auto}
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+
+/* Hero */
+.hero{background:var(--panel);color:var(--panel-fg);padding-block:56px 48px}
+.hero .in{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:48px;align-items:center}
+.hero .eyebrow{color:var(--signal)}
+.hero h1{font-family:var(--font-display);font-size:clamp(34px,5.2vw,58px);line-height:1.12;margin:14px 0 18px;font-weight:700;text-wrap:balance;letter-spacing:-.01em}
+.hero p{color:var(--panel-muted);font-size:17px;max-width:46ch;margin:0}
+.hero .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}
+.hero .tags span{font-size:13px;border:1px solid var(--panel-line);border-radius:999px;padding:3px 12px;color:var(--panel-fg)}
+.rack{background:color-mix(in srgb,var(--panel) 70%,#000);border:1px solid var(--panel-line);border-radius:14px;padding:18px 18px 14px;min-width:0}
+.rack-head{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11.5px;color:var(--panel-muted);margin-bottom:12px;gap:8px;flex-wrap:wrap}
+.live{display:inline-flex;align-items:center;gap:6px}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.node{display:grid;grid-template-columns:62px minmax(0,1fr) 46px;gap:10px;align-items:center;font-family:var(--font-mono);font-size:12px;padding:5px 0;border-top:1px solid var(--panel-line)}
+.node:first-of-type{border-top:0}
+.node .nm{color:var(--panel-muted)}
+.bars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.bar{height:8px;border-radius:4px;background:var(--panel-line);overflow:hidden}
+.bar b{display:block;height:100%;background:var(--signal);border-radius:4px}
+.bar b.w{background:var(--warn)} .bar b.c{background:var(--crit)}
+.node .st{text-align:right;font-weight:500}
+.st.ok{color:var(--ok)} .st.w{color:var(--warn)} .st.c{color:var(--crit)}
+.rack-foot{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--panel-muted)}
+.rack-foot em{font-style:normal;opacity:.8}
+
+/* Sections */
+section.band{padding-block:64px}
+h2{font-family:var(--font-display);font-size:clamp(26px,3.4vw,36px);line-height:1.25;margin:10px 0 14px;text-wrap:balance;font-weight:700}
+section .eyebrow{color:var(--accent)}
+.sub{color:var(--muted);max-width:60ch;margin:0}
+.values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px;margin-top:36px}
+.values div{min-width:0;border-top:2px solid var(--accent);padding-top:16px}
+.values .big{font-family:var(--font-display);font-size:40px;font-weight:700;line-height:1;color:var(--accent)}
+.values h3{margin:10px 0 6px;font-size:18px}
+.values p{margin:0;color:var(--muted);font-size:15px}
+
+.feat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:36px}
+.feat div{background:var(--surface);padding:24px;min-width:0}
+.feat .k{font-family:var(--font-mono);font-size:11.5px;color:var(--accent);letter-spacing:.06em}
+.feat h3{margin:6px 0 8px;font-size:18px}
+.feat p{margin:0;color:var(--muted);font-size:14.5px}
+
+.alt{background:var(--surface);border-block:1px solid var(--line)}
+.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;margin-top:36px;counter-reset:f}
+.flow div{min-width:0;position:relative;padding-top:44px}
+.flow div::before{counter-increment:f;content:counter(f);position:absolute;top:0;left:0;width:32px;height:32px;border-radius:50%;
+  border:1.5px solid var(--accent);color:var(--accent);font-family:var(--font-mono);font-size:14px;display:grid;place-items:center}
+.flow div:not(:last-child)::after{content:"";position:absolute;top:16px;left:44px;right:-12px;height:1.5px;background:var(--line)}
+.flow h3{margin:0 0 6px;font-size:17px}
+.flow p{margin:0;color:var(--muted);font-size:14.5px}
+
+.diff{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:32px}
+.diff div{border:1px solid var(--line);border-radius:12px;padding:22px;background:var(--surface);min-width:0}
+.diff h3{margin:0 0 6px;font-size:17px}
+.diff p{margin:0;color:var(--muted);font-size:14.5px}
+
+.spec{overflow-x:auto;margin-top:28px}
+.spec table{border-collapse:collapse;width:100%;font-size:14.5px}
+.spec th,.spec td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+.spec th{width:180px;color:var(--muted);font-weight:500;white-space:nowrap}
+.spec td{font-variant-numeric:tabular-nums}
+
+.adopt{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:start}
+.adopt ol{margin:0;padding-left:1.2em;display:grid;gap:10px}
+.adopt li::marker{color:var(--accent);font-family:var(--font-mono)}
+.req{background:var(--panel);color:var(--panel-fg);border-radius:14px;padding:24px;min-width:0}
+.req h3{margin:0 0 12px;font-size:16px;font-family:var(--font-display)}
+.req ul{margin:0;padding-left:1.1em;color:var(--panel-muted);font-size:14.5px;display:grid;gap:6px}
+.req code{font-family:var(--font-mono);font-size:.88em;color:var(--panel-fg)}
+footer.band{padding-block:28px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+
+@media (max-width:900px){
+  .hero .in{grid-template-columns:minmax(0,1fr)}
+  .values,.feat{grid-template-columns:minmax(0,1fr)}
+  .flow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .flow div::after{display:none}
+  .diff,.adopt{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:480px){.flow{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){.live i{animation:none}}
+</style>
+
+<header class="band hero">
+  <div class="in">
+    <div>
+      <div class="eyebrow">OS Monitor · Linux 노드 모니터링</div>
+      <h1>클러스터 아래 운영체제까지, 한 화면에서</h1>
+      <p>Kubernetes 노드의 Linux 상태를 모으고, 이상을 먼저 알리고, 자원이 바닥나기 전에 알려 줍니다. 이미 쓰고 있는 Prometheus와 Loki 위에 그대로 올라갑니다.</p>
+      <div class="tags"><span>새 에이전트 설치 없음</span><span>노드 SSH 접속 없음</span><span>GitOps 배포</span></div>
+    </div>
+    <div class="rack" aria-label="노드 상태 화면 예시">
+      <div class="rack-head"><span class="live"><i></i>노드 8대 · 60초 주기</span><span>CPU · MEM · DISK</span></div>
+      <div class="node"><span class="nm">ctrl-01</span><span class="bars"><span class="bar"><b style="width:34%"></b></span><span class="bar"><b style="width:52%"></b></span><span class="bar"><b style="width:41%"></b></span></span><span class="st ok">정상</span></div>
+      <div class="node"><span class="nm">ctrl-02</span><span class="bars"><span class="bar"><b style="width:29%"></b></span><span class="bar"><b style="width:48%"></b></span><span class="bar"><b style="width:44%"></b></span></span><span class="st ok">정상</span></div>
+      <div class="node"><span class="nm">ctrl-03</span><span class="bars"><span class="bar"><b style="width:31%"></b></span><span class="bar"><b style="width:50%"></b></span><span class="bar"><b style="width:39%"></b></span></span><span class="st ok">정상</span></div>
+      <div class="node"><span class="nm">work-01</span><span class="bars"><span class="bar"><b style="width:62%"></b></span><span class="bar"><b class="w" style="width:83%"></b></span><span class="bar"><b style="width:58%"></b></span></span><span class="st w">경고</span></div>
+      <div class="node"><span class="nm">work-02</span><span class="bars"><span class="bar"><b style="width:47%"></b></span><span class="bar"><b style="width:61%"></b></span><span class="bar"><b style="width:55%"></b></span></span><span class="st ok">정상</span></div>
+      <div class="node"><span class="nm">work-03</span><span class="bars"><span class="bar"><b style="width:44%"></b></span><span class="bar"><b style="width:66%"></b></span><span class="bar"><b class="c" style="width:92%"></b></span></span><span class="st c">위험</span></div>
+      <div class="node"><span class="nm">infra-01</span><span class="bars"><span class="bar"><b style="width:22%"></b></span><span class="bar"><b style="width:57%"></b></span><span class="bar"><b style="width:63%"></b></span></span><span class="st ok">정상</span></div>
+      <div class="node"><span class="nm">infra-02</span><span class="bars"><span class="bar"><b style="width:25%"></b></span><span class="bar"><b style="width:54%"></b></span><span class="bar"><b style="width:60%"></b></span></span><span class="st ok">정상</span></div>
+      <div class="rack-foot"><span>work-03 · 디스크 92% · 가득 찰 때까지 6일 (예측)</span><em>화면 예시</em></div>
+    </div>
+  </div>
+</header>
+
+<section class="band">
+  <div class="in">
+    <div class="eyebrow">왜 필요한가</div>
+    <h2>파드가 멀쩡해 보여도 노드는 지치고 있을 수 있습니다</h2>
+    <p class="sub">디스크가 차오르거나, 메모리가 바닥나 OOM Kill이 일어나거나, 커널 오류가 쌓이는 문제는 Kubernetes 화면에서 잘 보이지 않습니다. OS Monitor는 그 아래층을 봅니다.</p>
+    <div class="values">
+      <div><div class="big">60초</div><h3>바로 알아차립니다</h3><p>노드 8대의 CPU·메모리·디스크·부하를 1분마다 확인하고, 기준을 넘으면 이벤트로 남깁니다.</p></div>
+      <div><div class="big">9가지</div><h3>원인까지 짚습니다</h3><p>시스템 로그에서 OOM Kill, 디스크 I/O 오류, 커널 패닉 같은 이상 징후 9가지를 자동으로 찾아 이벤트 옆에 붙입니다.</p></div>
+      <div><div class="big">90일</div><h3>미리 대비합니다</h3><p>최근 30일 추세로 7·30·90일 뒤 사용률과 자원이 가득 찰 때까지 남은 날을 계산하고, 신뢰도를 함께 보여 줍니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band alt">
+  <div class="in">
+    <div class="eyebrow">핵심 기능</div>
+    <h2>수집부터 보고까지 한 제품으로</h2>
+    <div class="feat">
+      <div><div class="k">COLLECT</div><h3>OS 지표 수집</h3><p>CPU, 메모리, 스왑, 디스크, inode, 네트워크, 부하, 코어 수, 가동 시간, 실행 중·좀비 프로세스까지 수집합니다.</p></div>
+      <div><div class="k">LOGS</div><h3>시스템 로그 분석</h3><p>각 노드의 systemd journal을 우선순위·서비스·노드별로 걸러 보고, 이상 징후를 노드별 건수로 보여 줍니다.</p></div>
+      <div><div class="k">DETECT</div><h3>위기 감지와 진단</h3><p>임계값을 넘으면 같은 시간대 로그와 함께 원인, 해결 방법, 공식 문서 링크를 제시합니다.</p></div>
+      <div><div class="k">PREDICT</div><h3>용량 예측</h3><p>선형 회귀와 이상치 제거로 추세를 계산하고, 7일 안에 가득 찰 자원은 긴급 권고로 올립니다.</p></div>
+      <div><div class="k">REPORT</div><h3>정기 리포트</h3><p>일간·주간·월간·연간 리포트를 HTML·PDF·JSON으로 만듭니다. 일간 리포트는 매일 새벽에 자동으로 만들어집니다.</p></div>
+      <div><div class="k">ACCESS</div><h3>대시보드 · CLI · API</h3><p>웹 대시보드와 터미널 CLI, REST API를 제공합니다. 계정별로 볼 수 있는 화면을 정할 수 있습니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="in">
+    <div class="eyebrow">작동 방식</div>
+    <h2>데이터는 이렇게 흐릅니다</h2>
+    <div class="flow">
+      <div><h3>모으기</h3><p>이미 운영 중인 Node Exporter와 Loki에서 지표와 로그를 가져옵니다.</p></div>
+      <div><h3>쌓기</h3><p>TimescaleDB에 시계열로 저장하고, 시간 단위 집계를 자동으로 유지합니다.</p></div>
+      <div><h3>판단하기</h3><p>임계값 검사, 로그 징후 탐지, 추세 예측을 실행합니다.</p></div>
+      <div><h3>보여 주기</h3><p>대시보드, CLI, 리포트, API로 결과를 전달합니다.</p></div>
+    </div>
+    <div class="diff">
+      <div><h3>있는 것을 다시 씁니다</h3><p>노드에 새 DaemonSet이나 에이전트를 깔지 않습니다. 이미 수집하고 있는 Prometheus·Loki 데이터를 읽기만 합니다.</p></div>
+      <div><h3>노드 키를 나눠 주지 않습니다</h3><p>SSH 접속 없이 모든 항목을 지표로 수집합니다. 관리할 계정과 키가 늘지 않습니다.</p></div>
+      <div><h3>Git이 곧 배포입니다</h3><p>이미지 태그를 커밋하면 ArgoCD가 자동으로 맞춥니다. 비밀값은 Sealed Secrets로 암호화해서 함께 보관합니다.</p></div>
+      <div><h3>숫자에 신뢰도를 붙입니다</h3><p>예측은 데이터 양에 따라 high·medium·low·very_low로 표시해서, 근거가 얕은 숫자를 과신하지 않게 합니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band alt">
+  <div class="in">
+    <div class="eyebrow">사양</div>
+    <h2>기술 사양</h2>
+    <div class="spec"><table>
+      <tbody>
+        <tr><th>모니터링 대상</th><td>Kubernetes 클러스터 노드의 Linux OS (Kubernetes 리소스 자체는 제외)</td></tr>
+        <tr><th>데이터 소스</th><td>Prometheus + Node Exporter (PromQL), Loki + systemd journal (LogQL)</td></tr>
+        <tr><th>수집 주기</th><td>60초 · 예측 매일 02:30 · 일간 리포트 매일 01:00</td></tr>
+        <tr><th>저장소</th><td>TimescaleDB (hypertable, 시간 단위 연속 집계)</td></tr>
+        <tr><th>서버</th><td>Python 3.11, FastAPI, asyncpg, 속도 제한, OpenAPI 문서</td></tr>
+        <tr><th>화면</th><td>정적 웹 대시보드(라이트/다크), Rich 기반 CLI</td></tr>
+        <tr><th>인증</th><td>아이디·비밀번호 로그인(PBKDF2), 세션 토큰, 관리자·조회자 역할과 화면별 권한</td></tr>
+        <tr><th>배포</th><td>컨테이너 이미지 3종, Kustomize, ArgoCD 자동 동기화, Sealed Secrets</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="in adopt">
+    <div>
+      <div class="eyebrow">도입</div>
+      <h2>도입 절차</h2>
+      <ol>
+        <li>클러스터에 Prometheus(Node Exporter)와 Loki가 있는지 확인합니다.</li>
+        <li>노드 저널 수집기(promtail)를 배포하고, 노드에 영구 저널을 켭니다.</li>
+        <li>Sealed Secrets로 DB 비밀값을 봉인하고, ArgoCD Application을 등록합니다.</li>
+        <li>대시보드에 접속해 기본 관리자 비밀번호를 바꾸고 사용자 계정을 만듭니다.</li>
+      </ol>
+    </div>
+    <div class="req">
+      <h3>필요한 환경</h3>
+      <ul>
+        <li>Kubernetes (1.34에서 운영 중), Gateway API 또는 NodePort</li>
+        <li>kube-prometheus-stack (좀비 지표에는 <code>--collector.processes</code>)</li>
+        <li>Loki, ArgoCD, 사내 컨테이너 레지스트리</li>
+        <li>TimescaleDB용 영구 볼륨</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer class="band"><div class="in">OS Monitor · 2026년 11월 기준. 히어로의 노드 이름과 수치는 화면 예시입니다.</div></footer>

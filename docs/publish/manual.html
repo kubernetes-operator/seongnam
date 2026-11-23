@@ -1,0 +1,260 @@
+<title>OS Monitor 사용 설명서</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 데스크톱은 좌측 고정 목차 + 본문 단, 모바일은 목차가 상단으로 접힘 */
+:root{
+  --bg:#f6f8f8; --surface:#ffffff; --fg:#14201f; --muted:#5b6b69; --line:#d9e2e1;
+  --accent:#0e6e66; --accent-soft:#e2f1ef;
+  --ok:#15803d; --warn:#b45309; --crit:#b91c1c;
+  --font-body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1514; --surface:#161e1d; --fg:#e4ecea; --muted:#94a6a3; --line:#2a3634;
+  --accent:#4fc1b4; --accent-soft:#17302d; --ok:#4ade80; --warn:#fbbf24; --crit:#f87171; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1514; --surface:#161e1d; --fg:#e4ecea; --muted:#94a6a3; --line:#2a3634;
+  --accent:#4fc1b4; --accent-soft:#17302d; --ok:#4ade80; --warn:#fbbf24; --crit:#f87171; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15.5px;line-height:1.75;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px}
+header.doc{grid-column:1/-1;padding-block:48px 24px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.25;margin:8px 0 12px;text-wrap:balance;font-weight:700}
+.lede{color:var(--muted);max-width:62ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:20px;font-size:13px;color:var(--muted)}
+.meta b{color:var(--fg);font-weight:600}
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);align-self:start;padding-top:32px;font-size:14px}
+nav.toc p{font-size:12px;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-family:var(--font-mono)}
+nav.toc ol{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:t}
+nav.toc a{display:block;padding:4px 10px;border-radius:6px;color:var(--fg);text-decoration:none;border-left:2px solid transparent}
+nav.toc a:hover,nav.toc a:focus-visible{background:var(--accent-soft);border-left-color:var(--accent);outline:none}
+main{min-width:0;padding-top:24px}
+section{padding-block:28px;border-bottom:1px solid var(--line)}
+section:last-child{border-bottom:0}
+h2{font-size:23px;line-height:1.35;margin:0 0 12px;text-wrap:balance}
+h2 .n{font-family:var(--font-mono);font-size:14px;color:var(--accent);margin-right:10px;font-weight:500}
+h3{font-size:17px;margin:24px 0 6px}
+p,li{max-width:68ch}
+ul,ol{padding-left:1.3em}
+code,kbd{font-family:var(--font-mono);font-size:.88em;background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+pre{font-family:var(--font-mono);font-size:13px;line-height:1.6;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto}
+pre code{background:none;padding:0}
+.tbl{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12.5px;letter-spacing:.03em;white-space:nowrap}
+td.num{font-family:var(--font-mono)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:1px 9px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.crit{color:var(--crit)}
+.note{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:6px;padding:12px 16px;margin:16px 0;font-size:14.5px}
+.note.info{border-left-color:var(--accent)}
+.steps{counter-reset:s;list-style:none;padding:0;display:grid;gap:10px}
+.steps li{counter-increment:s;position:relative;padding-left:40px}
+.steps li::before{content:counter(s);position:absolute;left:0;top:2px;width:26px;height:26px;border-radius:50%;
+  background:var(--accent);color:var(--surface);font-family:var(--font-mono);font-size:13px;display:grid;place-items:center}
+.tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:12px}
+.tabs div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.tabs h4{margin:0 0 4px;font-size:15px}
+.tabs p{margin:0;font-size:14px;color:var(--muted)}
+dl.faq dt{font-weight:600;margin-top:16px}
+dl.faq dd{margin:4px 0 0;color:var(--fg)}
+@media (max-width:860px){
+  .wrap{grid-template-columns:minmax(0,1fr);gap:0}
+  nav.toc{position:static;padding-top:16px}
+  nav.toc ol{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header class="doc">
+  <div class="eyebrow">OS Monitor · 사용 설명서</div>
+  <h1>OS Monitor 상세 사용 설명서</h1>
+  <p class="lede">Kubernetes 클러스터를 이루는 노드의 Linux 운영체제 상태를 한 화면에서 보고, 이상을 빨리 알아차리고, 앞으로의 자원 부족을 미리 대비하기 위한 설명서입니다. 운영자와 조회 사용자를 대상으로 합니다.</p>
+  <div class="meta"><span>버전 <b>2026-11</b></span><span>대상 <b>운영자 · 조회 사용자</b></span><span>함께 보기 <b>기술 설명서</b></span></div>
+</header>
+
+<nav class="toc" aria-label="목차">
+  <p>목차</p>
+  <ol>
+    <li><a href="#about">제품 소개</a></li>
+    <li><a href="#start">처음 시작하기</a></li>
+    <li><a href="#screens">화면별 사용법</a></li>
+    <li><a href="#metrics">지표와 임계값</a></li>
+    <li><a href="#crisis">이상 대응 흐름</a></li>
+    <li><a href="#predict">예측 읽는 법</a></li>
+    <li><a href="#reports">리포트</a></li>
+    <li><a href="#cli">CLI 사용법</a></li>
+    <li><a href="#accounts">계정과 권한</a></li>
+    <li><a href="#security">보안 수칙</a></li>
+    <li><a href="#faq">문제 해결</a></li>
+  </ol>
+</nav>
+
+<main>
+<section id="about">
+  <h2><span class="n">01</span>제품 소개</h2>
+  <p>OS Monitor는 클러스터 노드의 <b>Base OS(Linux)</b>를 지켜보는 모니터링 플랫폼입니다. CPU·메모리·디스크·네트워크·부하 같은 지표와 호스트 시스템 로그(systemd journal)를 함께 모아, 무엇이 언제 왜 나빠졌는지 한곳에서 확인할 수 있게 합니다.</p>
+  <ul>
+    <li><b>보는 것:</b> 노드 운영체제의 상태입니다. 파드나 디플로이먼트 같은 Kubernetes 리소스 자체는 다루지 않습니다.</li>
+    <li><b>새로 설치하는 에이전트가 없습니다:</b> 이미 운영 중인 Prometheus(Node Exporter)와 Loki에서 데이터를 가져옵니다. 노드에 SSH로 접속하지도 않습니다.</li>
+    <li><b>쓰는 방법:</b> 웹 대시보드, 터미널 CLI, 정기 리포트(HTML·PDF·JSON), REST API 네 가지입니다.</li>
+  </ul>
+</section>
+
+<section id="start">
+  <h2><span class="n">02</span>처음 시작하기</h2>
+  <ol class="steps">
+    <li>관리자에게 받은 대시보드 주소로 접속합니다. 형식은 <code>https://&lt;게이트웨이 주소&gt;/osmonitoring/</code>입니다.</li>
+    <li>로그인 화면에서 아이디와 비밀번호를 입력합니다. 계정은 관리자가 <b>사용자 관리</b> 화면에서 만들어 줍니다.</li>
+    <li>처음 로그인했다면 <b>개인 설정</b> 탭에서 비밀번호를 바로 바꿉니다. 비밀번호를 바꾸면 그 계정의 다른 로그인 세션은 모두 끊깁니다.</li>
+    <li><b>개요</b> 탭의 "조치 필요 항목"부터 확인합니다. 비어 있으면 지금 손볼 일이 없다는 뜻입니다.</li>
+  </ol>
+  <div class="note"><b>설치 직후 기본 관리자 계정</b>(<code>admin</code> / <code>password</code>)은 반드시 바로 바꾸세요. 배포할 때 환경변수 <code>ADMIN_USERNAME</code>·<code>ADMIN_PASSWORD</code>로 처음부터 다른 값을 지정할 수도 있습니다.</div>
+  <p>오른쪽 위에서 자동 새로고침 주기를 고를 수 있습니다(10초 · 30초 · 1분 · 10분 · 안 함, 기본 1분). 고른 값은 브라우저에 저장됩니다. 화면은 OS의 라이트/다크 설정을 따라갑니다.</p>
+</section>
+
+<section id="screens">
+  <h2><span class="n">03</span>화면별 사용법</h2>
+  <p>위쪽 탭으로 화면을 옮깁니다. 계정 권한에 따라 일부 탭이 보이지 않을 수 있습니다.</p>
+  <div class="tabs">
+    <div><h4>개요</h4><p>클러스터 전체 게이지와 성능 요약을 보여 줍니다. 아래쪽 "조치 필요 항목"에는 해결되지 않은 이벤트와 임계값을 넘은 노드가 최대 10개까지 나오고, 누르면 해당 화면으로 이동합니다.</p></div>
+    <div><h4>노드</h4><p>노드별 CPU·메모리·디스크·코어당 부하, OS 배포판과 커널 버전을 보여 줍니다. 노드를 고르면 시계열 그래프가 열립니다.</p></div>
+    <div><h4>이벤트</h4><p>임계값 초과로 생긴 위기 이벤트 목록입니다. 상세 화면에서 원인 진단, 관련 로그, 해결 방법, 공식 문서 링크를 볼 수 있습니다.</p></div>
+    <div><h4>로그</h4><p>노드의 시스템 로그를 우선순위·노드·서비스(unit)로 걸러 봅니다. 요약 카드와 "탐지된 패턴"(9가지 이상 징후) 표가 함께 나옵니다.</p></div>
+    <div><h4>예측</h4><p>앞으로 7·30·90일 뒤의 사용률 추정치와, 자원이 가득 찰 때까지 남은 일수를 보여 줍니다. 신뢰도 열을 꼭 함께 보세요.</p></div>
+    <div><h4>리포트</h4><p>일간·주간·월간·연간 리포트를 만들고, 미리 보고, 내려받습니다(HTML·PDF·JSON).</p></div>
+    <div><h4>개인 설정</h4><p>자기 비밀번호를 바꿉니다. 모든 사용자가 쓸 수 있습니다.</p></div>
+    <div><h4>사용자 관리</h4><p>관리자만 보입니다. 계정을 만들고, 역할(관리자·조회자)과 볼 수 있는 화면을 정합니다.</p></div>
+  </div>
+</section>
+
+<section id="metrics">
+  <h2><span class="n">04</span>지표와 임계값</h2>
+  <p>지표는 60초마다 수집합니다. 아래 기준을 넘으면 이벤트가 생기고, 화면에서 색으로 구분됩니다.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>지표</th><th>뜻</th><th>경고</th><th>위험</th></tr></thead>
+    <tbody>
+      <tr><td>CPU 사용률</td><td>유휴 시간을 뺀 CPU 사용 비율(5분 평균)</td><td class="num"><span class="pill warn">80%</span></td><td class="num"><span class="pill crit">90%</span></td></tr>
+      <tr><td>메모리 사용률</td><td>전체 메모리 중 바로 쓸 수 없는 부분의 비율</td><td class="num"><span class="pill warn">80%</span></td><td class="num"><span class="pill crit">90%</span></td></tr>
+      <tr><td>디스크 사용률</td><td>루트(<code>/</code>) 파일시스템 사용 비율</td><td class="num"><span class="pill warn">75%</span></td><td class="num"><span class="pill crit">90%</span></td></tr>
+      <tr><td>코어당 부하</td><td>1분 부하 평균 ÷ CPU 코어 수</td><td class="num"><span class="pill warn">1.5</span></td><td class="num"><span class="pill crit">2.0</span></td></tr>
+      <tr><td>inode 사용률</td><td>루트 파일시스템의 파일 개수 한도 대비 사용 비율</td><td colspan="2">참고 지표</td></tr>
+      <tr><td>좀비 프로세스</td><td>종료됐지만 부모가 회수하지 않은 프로세스 수</td><td colspan="2">참고 지표</td></tr>
+      <tr><td>네트워크·디스크 I/O</td><td>초당 송수신·읽기쓰기 바이트</td><td colspan="2">추세 관찰</td></tr>
+      <tr><td>가동 시간</td><td>마지막 부팅 이후 경과 시간</td><td colspan="2">예상치 못한 재부팅 확인용</td></tr>
+    </tbody>
+  </table></div>
+  <p>값이 비어 있으면 아직 수집되지 않았거나 해당 노드에서 그 지표를 제공하지 않는다는 뜻입니다. 0과는 다릅니다.</p>
+</section>
+
+<section id="crisis">
+  <h2><span class="n">05</span>이상 대응 흐름</h2>
+  <ol class="steps">
+    <li><b>알아차리기:</b> 개요의 "조치 필요 항목"이나 이벤트 탭에서 <span class="pill crit">critical</span>·<span class="pill warn">warning</span> 표시를 확인합니다.</li>
+    <li><b>원인 보기:</b> 이벤트 상세에서 진단 내용과, 같은 시간대의 해당 노드 시스템 로그를 봅니다.</li>
+    <li><b>로그로 확인하기:</b> 로그 탭에서 노드와 시간대를 좁혀 OOM Kill, 디스크 I/O 오류 같은 패턴이 같이 나타났는지 확인합니다.</li>
+    <li><b>조치하기:</b> 이벤트 상세에 나온 해결 방법과 공식 문서 링크를 따라 조치합니다.</li>
+    <li><b>재발 막기:</b> 예측 탭에서 같은 자원이 다시 차오르는 추세인지 확인하고, 필요하면 용량을 늘리는 계획을 세웁니다.</li>
+  </ol>
+  <h3>로그에서 자동으로 찾는 9가지 이상 징후</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>징후</th><th>심각도</th><th>먼저 의심할 것</th></tr></thead>
+    <tbody>
+      <tr><td>메모리 부족(OOM Kill)</td><td><span class="pill crit">critical</span></td><td>메모리 한도가 없는 프로세스, 메모리 누수</td></tr>
+      <tr><td>커널 패닉/Oops</td><td><span class="pill crit">critical</span></td><td>커널·드라이버 결함, 하드웨어 이상</td></tr>
+      <tr><td>디스크 I/O 오류</td><td><span class="pill crit">critical</span></td><td>디스크 장애, 스토리지 경로 문제</td></tr>
+      <tr><td>파일시스템 오류</td><td><span class="pill crit">critical</span></td><td>파일시스템 손상, 읽기 전용 재마운트</td></tr>
+      <tr><td>디스크 공간 부족</td><td><span class="pill warn">warning</span></td><td>로그·이미지 누적</td></tr>
+      <tr><td>세그먼테이션 오류</td><td><span class="pill warn">warning</span></td><td>응용 프로그램 결함</td></tr>
+      <tr><td>태스크 멈춤/소프트 락업</td><td><span class="pill warn">warning</span></td><td>I/O 대기 적체, CPU 독점</td></tr>
+      <tr><td>인증 실패</td><td><span class="pill warn">warning</span></td><td>무차별 대입 시도, 잘못된 자동화 계정</td></tr>
+      <tr><td>서비스 기동 실패</td><td><span class="pill warn">warning</span></td><td>설정 오류, 의존 서비스 미기동</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="predict">
+  <h2><span class="n">06</span>예측 읽는 법</h2>
+  <p>예측은 하루 단위로 모은 최근 30일 사용률에 선형 회귀를 적용해 계산합니다. 매일 새벽에 다시 계산합니다. 데이터가 적어도 값은 보여 주지만, 신뢰도를 함께 표시합니다.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>신뢰도</th><th>데이터</th><th>어떻게 쓰나</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill ok">high</span></td><td>30일 이상이거나, 14일 이상이면서 추세가 거의 평평함</td><td>용량 계획의 근거로 써도 됩니다</td></tr>
+      <tr><td><span class="pill ok">medium</span></td><td>14~29일</td><td>방향은 믿을 만합니다. 날짜는 여유를 두고 봅니다</td></tr>
+      <tr><td><span class="pill warn">low</span></td><td>3~13일</td><td>참고만 합니다</td></tr>
+      <tr><td><span class="pill crit">very_low</span></td><td>3일 미만</td><td>현재값을 그대로 이어 붙인 수준입니다</td></tr>
+    </tbody>
+  </table></div>
+  <p>"가득 찰 때까지 남은 일수"가 7일 이하이면 긴급(high), 그보다 길면 보통(medium) 권고로 표시됩니다.</p>
+</section>
+
+<section id="reports">
+  <h2><span class="n">07</span>리포트</h2>
+  <ul>
+    <li><b>자동 생성:</b> 일간 리포트는 매일 01:00에 만들어집니다.</li>
+    <li><b>직접 생성:</b> 리포트 탭이나 CLI <code>monitor report</code>로 일간·주간·월간·연간 리포트를 만들 수 있습니다.</li>
+    <li><b>형식:</b> HTML(브라우저에서 바로 미리보기), PDF(보고·보관용), JSON(다른 시스템 연동용).</li>
+    <li><b>내용:</b> 노드별 평균·최대 사용률, 최대 대비 비율, 이벤트 요약.</li>
+  </ul>
+  <div class="note info">2026년 7월 이전에 만든 리포트는 내용이 데이터베이스에 저장되지 않아 내려받을 수 없습니다. 같은 기간으로 다시 생성하세요.</div>
+</section>
+
+<section id="cli">
+  <h2><span class="n">08</span>CLI 사용법</h2>
+  <p>터미널에서 표 형태로 상태를 봅니다. 색으로 임계값을 구분합니다.</p>
+<pre><code>monitor status &lt;클러스터&gt;     # 클러스터 전체 요약
+monitor nodes &lt;클러스터&gt;      # 노드별 OS·커널·CPU·메모리
+monitor os-metrics            # 노드별 상세 지표 (좀비 프로세스, inode 포함)
+monitor top                   # 사용량 상위 노드
+monitor events                # 위기 이벤트 목록
+monitor predict               # 예측 결과
+monitor report                # 리포트 생성
+monitor logs                  # 시스템 로그 조회와 이상 징후 탐지</code></pre>
+</section>
+
+<section id="accounts">
+  <h2><span class="n">09</span>계정과 권한</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>역할</th><th>할 수 있는 일</th></tr></thead>
+    <tbody>
+      <tr><td><b>관리자</b></td><td>모든 화면, 사용자 관리(계정 생성, 역할·화면 권한 지정)</td></tr>
+      <tr><td><b>조회자</b></td><td>관리자가 허용한 화면만 볼 수 있습니다. 개인 설정은 항상 쓸 수 있고, 사용자 관리는 쓸 수 없습니다.</td></tr>
+    </tbody>
+  </table></div>
+  <p>화면 권한은 메뉴를 숨기는 데서 끝나지 않습니다. 서버도 같은 규칙으로 요청을 확인합니다.</p>
+</section>
+
+<section id="security">
+  <h2><span class="n">10</span>보안 수칙</h2>
+  <ul>
+    <li>기본 관리자 비밀번호는 설치하자마자 바꿉니다.</li>
+    <li>시스템 로그에는 인증 기록처럼 개인정보가 들어 있을 수 있습니다. 로그 화면을 캡처해 공유할 때는 사용자 이름이나 IP를 가리세요.</li>
+    <li>DB 비밀번호 같은 비밀값은 Sealed Secrets로 암호화해서 Git에 보관합니다. 평문 값은 메신저나 문서에 붙여 넣지 않습니다.</li>
+    <li>OS Monitor는 노드에 SSH로 접속하지 않습니다. 수집을 위해 노드 계정이나 키를 줄 필요가 없습니다.</li>
+  </ul>
+</section>
+
+<section id="faq">
+  <h2><span class="n">11</span>문제 해결</h2>
+  <dl class="faq">
+    <dt>로그인했는데 곧바로 다시 로그인 화면이 나옵니다.</dt>
+    <dd>세션이 만료됐거나, 다른 곳에서 비밀번호를 바꿔 세션이 끊긴 경우입니다. 다시 로그인하세요.</dd>
+    <dt>탭이 일부만 보입니다.</dt>
+    <dd>조회자 계정에 허용된 화면만 보입니다. 필요한 화면은 관리자에게 요청하세요.</dd>
+    <dt>노드 값이 비어 있습니다.</dt>
+    <dd>최근 10분 안에 수집된 데이터가 없다는 뜻입니다. 해당 노드의 Node Exporter가 동작하는지 관리자에게 확인을 요청하세요.</dd>
+    <dt>로그 탭에 아무것도 나오지 않습니다.</dt>
+    <dd>호스트 저널 수집기(promtail)가 그 노드에서 동작하지 않거나, 노드에 영구 저널(<code>/var/log/journal</code>)이 꺼져 있는 경우입니다.</dd>
+    <dt>예측 값이 현재값과 같습니다.</dt>
+    <dd>데이터가 3일 미만이라 추세를 계산할 수 없는 상태입니다(신뢰도 very_low). 며칠 지나면 자연스럽게 나아집니다.</dd>
+    <dt>알림이 어디에도 오지 않습니다.</dt>
+    <dd>알림 규칙은 평가되고 있지만, Alertmanager에 받을 곳(메일·메신저 등)이 아직 설정되지 않았습니다. 관리자에게 수신처 설정을 요청하세요.</dd>
+  </dl>
+</section>
+</main>
+</div>

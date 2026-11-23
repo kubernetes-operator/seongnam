@@ -1,0 +1,318 @@
+<title>OS Monitor 기술 설명서</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 사용 설명서와 같은 체계 — 좌측 고정 목차 + 본문, 구조도는 전폭 SVG */
+:root{
+  --bg:#f6f8f8; --surface:#ffffff; --fg:#14201f; --muted:#5b6b69; --line:#d9e2e1;
+  --accent:#0e6e66; --accent-soft:#e2f1ef; --node:#eef3f2;
+  --ok:#15803d; --warn:#b45309; --crit:#b91c1c;
+  --font-body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1514; --surface:#161e1d; --fg:#e4ecea; --muted:#94a6a3; --line:#2a3634;
+  --accent:#4fc1b4; --accent-soft:#17302d; --node:#1b2625; --ok:#4ade80; --warn:#fbbf24; --crit:#f87171; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1514; --surface:#161e1d; --fg:#e4ecea; --muted:#94a6a3; --line:#2a3634;
+  --accent:#4fc1b4; --accent-soft:#17302d; --node:#1b2625; --ok:#4ade80; --warn:#fbbf24; --crit:#f87171; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15.5px;line-height:1.75;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px}
+header.doc{grid-column:1/-1;padding-block:48px 24px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.25;margin:8px 0 12px;text-wrap:balance;font-weight:700}
+.lede{color:var(--muted);max-width:66ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:20px;font-size:13px;color:var(--muted)}
+.meta b{color:var(--fg);font-weight:600}
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);align-self:start;padding-top:32px;font-size:14px}
+nav.toc p{font-size:12px;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;font-family:var(--font-mono)}
+nav.toc ol{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+nav.toc a{display:block;padding:4px 10px;border-radius:6px;color:var(--fg);text-decoration:none;border-left:2px solid transparent}
+nav.toc a:hover,nav.toc a:focus-visible{background:var(--accent-soft);border-left-color:var(--accent);outline:none}
+main{min-width:0;padding-top:24px}
+section{padding-block:28px;border-bottom:1px solid var(--line)}
+section:last-child{border-bottom:0}
+h2{font-size:23px;line-height:1.35;margin:0 0 12px;text-wrap:balance}
+h2 .n{font-family:var(--font-mono);font-size:14px;color:var(--accent);margin-right:10px;font-weight:500}
+h3{font-size:17px;margin:24px 0 6px}
+p,li{max-width:70ch}
+ul,ol{padding-left:1.3em}
+code{font-family:var(--font-mono);font-size:.86em;background:var(--accent-soft);padding:1px 6px;border-radius:4px;overflow-wrap:anywhere}
+pre{font-family:var(--font-mono);font-size:13px;line-height:1.6;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto}
+pre code{background:none;padding:0;overflow-wrap:normal}
+.tbl{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:12.5px;letter-spacing:.03em;white-space:nowrap}
+td code{white-space:nowrap}
+td.q code{white-space:normal}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:1px 9px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.crit{color:var(--crit)}
+.note{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:6px;padding:12px 16px;margin:16px 0;font-size:14.5px}
+.note.info{border-left-color:var(--accent)}
+.diagram{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
+.diagram svg{display:block;min-width:760px;width:100%;height:auto}
+.diagram text{font-family:var(--font-body);fill:var(--fg)}
+.diagram .sub{fill:var(--muted);font-size:11px}
+.diagram .box{fill:var(--node);stroke:var(--line)}
+.diagram .core{fill:var(--accent-soft);stroke:var(--accent)}
+.diagram .edge{stroke:var(--muted);fill:none;stroke-width:1.4}
+.diagram .arrow{fill:var(--muted)}
+.diagram .zone{fill:none;stroke:var(--line);stroke-dasharray:4 4}
+.diagram .zl{fill:var(--muted);font-size:11px;font-family:var(--font-mono)}
+@media (max-width:860px){
+  .wrap{grid-template-columns:minmax(0,1fr);gap:0}
+  nav.toc{position:static;padding-top:16px}
+  nav.toc ol{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+}
+</style>
+
+<div class="wrap">
+<header class="doc">
+  <div class="eyebrow">OS Monitor · 기술 설명서</div>
+  <h1>OS Monitor 기술 설명서</h1>
+  <p class="lede">구조, 데이터 흐름, 수집 쿼리, 저장 스키마, API, 분석 알고리즘, 배포와 보안 설계를 정리한 문서입니다. 개발자와 플랫폼 운영자를 대상으로 합니다.</p>
+  <div class="meta"><span>기준 <b>main · 2026-11-23</b></span><span>런타임 <b>Python 3.11 · Kubernetes 1.34</b></span><span>배포 <b>Kustomize + ArgoCD</b></span></div>
+</header>
+
+<nav class="toc" aria-label="목차">
+  <p>목차</p>
+  <ol>
+    <li><a href="#arch">아키텍처</a></li>
+    <li><a href="#components">구성 요소</a></li>
+    <li><a href="#collect">수집</a></li>
+    <li><a href="#storage">저장</a></li>
+    <li><a href="#analysis">분석</a></li>
+    <li><a href="#api">API</a></li>
+    <li><a href="#auth">인증과 권한</a></li>
+    <li><a href="#deploy">배포</a></li>
+    <li><a href="#security">보안 설계</a></li>
+    <li><a href="#ops">운영과 관측</a></li>
+    <li><a href="#limits">제약과 과제</a></li>
+  </ol>
+</nav>
+
+<main>
+<section id="arch">
+  <h2><span class="n">01</span>아키텍처</h2>
+  <p>OS Monitor는 클러스터에 이미 있는 관측 스택(Prometheus, Loki)을 데이터 소스로 씁니다. 수집기가 60초마다 PromQL로 노드 지표를 읽어 TimescaleDB에 쌓고, 분석 작업이 그 위에서 위기 감지와 예측을 수행합니다. 사용자는 API를 통해 대시보드·CLI·리포트로 결과를 봅니다.</p>
+  <div class="diagram" role="img" aria-label="데이터 흐름: Node Exporter와 promtail이 Prometheus와 Loki로 데이터를 보내고, 수집기가 TimescaleDB에 적재하며, API가 대시보드, CLI, 리포트에 제공한다">
+  <svg viewBox="0 0 980 330" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+    <rect class="zone" x="8" y="20" width="200" height="290" rx="10"/>
+    <text class="zl" x="20" y="40">각 노드 (DaemonSet)</text>
+    <rect class="zone" x="230" y="20" width="170" height="290" rx="10"/>
+    <text class="zl" x="242" y="40">기존 관측 스택</text>
+    <rect class="zone" x="422" y="20" width="550" height="290" rx="10"/>
+    <text class="zl" x="434" y="40">os-monitor 네임스페이스</text>
+
+    <rect class="box" x="24" y="70" width="168" height="58" rx="8"/><text x="38" y="95" font-size="14" font-weight="600">Node Exporter</text><text class="sub" x="38" y="114">CPU·메모리·디스크·프로세스</text>
+    <rect class="box" x="24" y="200" width="168" height="58" rx="8"/><text x="38" y="225" font-size="14" font-weight="600">promtail (journal)</text><text class="sub" x="38" y="244">/var/log/journal</text>
+
+    <rect class="box" x="246" y="70" width="138" height="58" rx="8"/><text x="260" y="95" font-size="14" font-weight="600">Prometheus</text><text class="sub" x="260" y="114">PromQL</text>
+    <rect class="box" x="246" y="200" width="138" height="58" rx="8"/><text x="260" y="225" font-size="14" font-weight="600">Loki</text><text class="sub" x="260" y="244">LogQL</text>
+
+    <rect class="core" x="440" y="70" width="150" height="58" rx="8"/><text x="454" y="95" font-size="14" font-weight="600">Collector</text><text class="sub" x="454" y="114">60초 루프 · 임계값</text>
+    <rect class="core" x="440" y="160" width="150" height="58" rx="8"/><text x="454" y="185" font-size="14" font-weight="600">TimescaleDB</text><text class="sub" x="454" y="204">hypertable · 시간 집계</text>
+    <rect class="box" x="440" y="245" width="150" height="50" rx="8"/><text x="454" y="266" font-size="13" font-weight="600">CronJob</text><text class="sub" x="454" y="283">예측 02:30 · 리포트 01:00</text>
+
+    <rect class="core" x="630" y="160" width="130" height="58" rx="8"/><text x="644" y="185" font-size="14" font-weight="600">FastAPI</text><text class="sub" x="644" y="204">/api/v1 · 2 replicas</text>
+
+    <rect class="box" x="800" y="62" width="156" height="50" rx="8"/><text x="814" y="92" font-size="13" font-weight="600">웹 대시보드</text>
+    <rect class="box" x="800" y="164" width="156" height="50" rx="8"/><text x="814" y="194" font-size="13" font-weight="600">CLI (monitor)</text>
+    <rect class="box" x="800" y="252" width="156" height="50" rx="8"/><text x="814" y="282" font-size="13" font-weight="600">리포트 HTML·PDF·JSON</text>
+
+    <path class="edge" d="M192,99 H244" marker-end="url(#ah)"/>
+    <path class="edge" d="M192,229 H244" marker-end="url(#ah)"/>
+    <path class="edge" d="M384,99 H438" marker-end="url(#ah)"/>
+    <path class="edge" d="M515,128 V158" marker-end="url(#ah)"/>
+    <path class="edge" d="M515,245 V220" marker-end="url(#ah)"/>
+    <path class="edge" d="M590,189 H628" marker-end="url(#ah)"/>
+    <path class="edge" d="M384,229 C560,300 620,250 660,220" marker-end="url(#ah)"/>
+    <path class="edge" d="M760,180 C780,150 780,90 798,88" marker-end="url(#ah)"/>
+    <path class="edge" d="M760,189 H798" marker-end="url(#ah)"/>
+    <path class="edge" d="M760,200 C780,230 780,276 798,277" marker-end="url(#ah)"/>
+  </svg>
+  </div>
+  <p>API는 로그를 조회할 때 Loki에 직접 LogQL을 보냅니다. 메트릭은 DB에서 읽습니다. 따라서 DB가 수집 이력의 진실 소스이고, Prometheus는 실시간 소스입니다.</p>
+</section>
+
+<section id="components">
+  <h2><span class="n">02</span>구성 요소</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>구성 요소</th><th>쿠버네티스 리소스</th><th>코드</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr><td>Collector</td><td>Deployment ×1</td><td><code>src/collector/</code></td><td>PromQL 수집, 임계값 검사, DB 적재, 시작할 때 스키마 적용</td></tr>
+      <tr><td>API</td><td>Deployment ×2</td><td><code>src/api/</code></td><td>REST API, 인증·권한, 로그 프록시, 리포트 서빙</td></tr>
+      <tr><td>Dashboard</td><td>Deployment</td><td><code>dashboard/</code></td><td>정적 HTML/JS(빌드 도구 없음), nginx가 <code>/osmonitoring</code> 아래에서 서빙하고 API로 프록시</td></tr>
+      <tr><td>TimescaleDB</td><td>StatefulSet</td><td><code>src/db/</code></td><td>시계열 저장, 시간 단위 연속 집계</td></tr>
+      <tr><td>예측 작업</td><td>CronJob <code>30 2 * * *</code></td><td><code>src/analysis/predictor.py</code></td><td>노드별 7·30·90일 예측과 용량 권고</td></tr>
+      <tr><td>일간 리포트</td><td>CronJob <code>0 1 * * *</code></td><td><code>src/reports/</code></td><td>리포트 생성 후 DB에 내용 저장</td></tr>
+      <tr><td>호스트 저널 수집</td><td>DaemonSet (logging ns)</td><td><code>deploy/logging/</code></td><td>노드 journal을 Loki에 <code>job=systemd-journal</code>로 전송</td></tr>
+    </tbody>
+  </table></div>
+  <p>CronJob은 collector 이미지를 함께 씁니다. 예측이나 리포트 코드를 바꾸면 collector 이미지도 다시 빌드해야 합니다.</p>
+</section>
+
+<section id="collect">
+  <h2><span class="n">03</span>수집</h2>
+  <p><code>PrometheusCollector.collect_all()</code>이 아래 쿼리를 병렬로 실행하고, 결과를 <code>instance</code> 라벨로 노드에 매핑합니다. 지표가 없으면 0이 아니라 <code>null</code>로 저장해서, 정상값으로 잘못 보이지 않게 합니다.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>필드</th><th>PromQL</th></tr></thead>
+    <tbody>
+      <tr><td>cpu_usage</td><td class="q"><code>100 - avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m]))*100</code></td></tr>
+      <tr><td>memory_usage</td><td class="q"><code>(MemTotal - MemAvailable) / MemTotal * 100</code></td></tr>
+      <tr><td>disk_usage</td><td class="q"><code>루트(/) 파일시스템 (size - avail) / size * 100</code>, tmpfs 제외</td></tr>
+      <tr><td>load1·5·15</td><td class="q"><code>node_load1</code>, <code>node_load5</code>, <code>node_load15</code></td></tr>
+      <tr><td>cpu_cores</td><td class="q"><code>count by(instance)(node_cpu_seconds_total{mode="idle"})</code></td></tr>
+      <tr><td>load_per_core</td><td class="q"><code>load1 / cpu_cores</code> (수집기에서 계산)</td></tr>
+      <tr><td>procs_running</td><td class="q"><code>node_procs_running</code></td></tr>
+      <tr><td>procs_zombie</td><td class="q"><code>sum by(instance)(node_processes_state{state="Z"}) or (0 * count by(instance)(node_processes_state))</code></td></tr>
+      <tr><td>inode_usage</td><td class="q"><code>(1 - files_free / files) * 100</code>, 루트 파일시스템</td></tr>
+      <tr><td>uptime_sec</td><td class="q"><code>time() - node_boot_time_seconds</code></td></tr>
+      <tr><td>os_distro·kernel</td><td class="q"><code>node_os_info</code>의 <code>pretty_name</code>, <code>node_uname_info</code>의 <code>release</code> 라벨</td></tr>
+      <tr><td>network·disk I/O</td><td class="q"><code>rate(..._bytes_total[5m])</code>, <code>lo</code> 인터페이스 제외</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note info">좀비 프로세스 지표는 Node Exporter의 <code>--collector.processes</code>가 켜져 있어야 나옵니다. 좀비가 0개면 <code>state="Z"</code> 시계열 자체가 없으므로, 수집기가 켜진 노드에서는 <code>or</code> 절로 0을 채웁니다.</div>
+</section>
+
+<section id="storage">
+  <h2><span class="n">04</span>저장</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>테이블</th><th>종류</th><th>주요 컬럼</th></tr></thead>
+    <tbody>
+      <tr><td><code>os_metrics</code></td><td>hypertable (time)</td><td>cpu·memory·disk·swap 비율, load1/5/15, load_per_core, 디스크·네트워크 B/s, processes_running·zombie, inode_usage_ratio, uptime_sec</td></tr>
+      <tr><td><code>os_metrics_hourly</code></td><td>연속 집계</td><td>bucket, cpu_avg, mem_avg, disk_avg, load_avg. 1h·2h·6h 간격 조회에 사용</td></tr>
+      <tr><td><code>cluster_nodes</code></td><td>일반</td><td>node_name, node_ip, os_distro, kernel_version, cpu_cores (upsert, NULL이면 기존 값 유지)</td></tr>
+      <tr><td><code>events</code></td><td>일반</td><td>time, severity, event_type, message, details(JSONB), resolved</td></tr>
+      <tr><td><code>reports</code></td><td>일반</td><td>report_type, period, format, content(본문), summary(JSONB)</td></tr>
+      <tr><td><code>users</code> · <code>sessions</code></td><td>일반</td><td>PBKDF2 해시와 salt, 세션 토큰</td></tr>
+      <tr><td><code>user_access</code></td><td>일반</td><td>role(admin·viewer), pages(JSONB)</td></tr>
+    </tbody>
+  </table></div>
+  <p>스키마는 멱등입니다(<code>CREATE ... IF NOT EXISTS</code>, <code>ADD COLUMN IF NOT EXISTS</code>). API와 Collector 중 먼저 뜨는 쪽이 적용합니다. 별도 마이그레이션 도구는 쓰지 않습니다.</p>
+  <p>리포트 본문은 파일이 아니라 DB에 저장합니다. API가 여러 Pod로 떠 있고 CronJob Pod와 저장소를 공유하지 않기 때문입니다.</p>
+</section>
+
+<section id="analysis">
+  <h2><span class="n">05</span>분석</h2>
+  <h3>위기 감지</h3>
+  <p>수집할 때마다 노드별로 임계값을 검사하고, 넘으면 <code>events</code>에 기록합니다. <code>crisis_engine</code>은 같은 시간대의 Loki 로그를 붙여 진단하고, <code>crisis_catalog</code>의 원인·해결 방법·공식 문서 링크를 제시합니다.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>유형</th><th>지표</th><th>경고 / 위험</th></tr></thead>
+    <tbody>
+      <tr><td><code>HIGH_CPU</code></td><td>cpu_usage_ratio</td><td>80 / 90 %</td></tr>
+      <tr><td><code>MEMORY_EXHAUSTION</code></td><td>memory_usage_ratio</td><td>80 / 90 %</td></tr>
+      <tr><td><code>DISK_FULL</code></td><td>disk_usage_ratio</td><td>75 / 90 %</td></tr>
+      <tr><td><code>HIGH_LOAD</code></td><td>load_per_core</td><td>1.5 / 2.0</td></tr>
+    </tbody>
+  </table></div>
+  <h3>로그 분석</h3>
+  <p><code>log_service</code>는 LogQL로 최근 로그, 우선순위·노드별 요약, 알려진 이상 징후 9가지(OOM, 커널 패닉, I/O 오류, 파일시스템 오류, 디스크 공간 부족, segfault, hung task, 인증 실패, 서비스 기동 실패)를 정규식으로 찾습니다. 결과는 <code>sum by(node_name)</code>로 노드별 건수를 냅니다.</p>
+  <h3>예측</h3>
+  <p>최근 30일의 일 단위 평균에서 IQR 기준 이상치를 뺀 뒤 선형 회귀로 기울기를 구합니다. 7·30·90일 뒤 값은 0~100으로 자르고, 기울기가 양수이면 100%까지 남은 일수를 계산합니다.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>데이터 포인트</th><th>confidence</th></tr></thead>
+    <tbody>
+      <tr><td>30 이상</td><td><span class="pill ok">high</span></td></tr>
+      <tr><td>14 ~ 29 (기울기가 0.01 미만이면 high)</td><td><span class="pill ok">medium</span></td></tr>
+      <tr><td>3 ~ 13</td><td><span class="pill warn">low</span></td></tr>
+      <tr><td>1 ~ 2 (기울기 0, 현재값 유지)</td><td><span class="pill crit">very_low</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="api">
+  <h2><span class="n">06</span>API</h2>
+  <p>모든 경로는 <code>/api/v1</code> 아래에 있고, 로그인과 헬스체크를 뺀 나머지는 세션 토큰(<code>Authorization: Bearer</code>)이 필요합니다. 속도 제한(slowapi)과 CORS가 적용되고, OpenAPI 문서가 자동 생성됩니다.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>메서드</th><th>경로</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/clusters</code>, <code>/clusters/{c}</code>, <code>/clusters/{c}/nodes</code></td><td>클러스터 목록, 최신 지표와 이벤트, 노드 정보</td></tr>
+      <tr><td>GET</td><td><code>/metrics/os/{c}/{node}</code></td><td>노드 시계열 (interval 1h 이상은 시간 집계 사용)</td></tr>
+      <tr><td>GET</td><td><code>/metrics/summary/{c}</code>, <code>/metrics/top</code></td><td>최근 10분 최신값, 상위 노드</td></tr>
+      <tr><td>GET</td><td><code>/events</code>, <code>/events/{id}</code></td><td>위기 이벤트 목록과 상세</td></tr>
+      <tr><td>GET</td><td><code>/predictions/{c}</code>, <code>/predictions/{c}/{node}</code></td><td>예측과 권고</td></tr>
+      <tr><td>GET·POST</td><td><code>/reports</code>, <code>/reports/{id}/download</code>, <code>/reports/{id}/view</code>, <code>/reports/generate</code></td><td>리포트 목록, 다운로드, 미리보기, 생성</td></tr>
+      <tr><td>GET</td><td><code>/logs</code>, <code>/logs/summary</code>, <code>/logs/patterns</code></td><td>Loki 프록시: 로그, 요약, 이상 징후</td></tr>
+      <tr><td>POST·GET</td><td><code>/auth/login</code>, <code>/auth/logout</code>, <code>/auth/me</code>, <code>/auth/change-password</code></td><td>세션 인증</td></tr>
+      <tr><td>GET·POST</td><td><code>/auth/ui/session</code>, <code>/auth/ui/users</code>, <code>/auth/ui/password</code></td><td>공용 UI 계정·페이지 권한</td></tr>
+      <tr><td>GET</td><td><code>/healthz</code></td><td>DB에 <code>SELECT 1</code>까지 실행, 실패하면 503</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="auth">
+  <h2><span class="n">07</span>인증과 권한</h2>
+  <ul>
+    <li><b>비밀번호:</b> PBKDF2-HMAC-SHA256과 사용자별 salt로 저장합니다. 평문은 저장하지 않습니다.</li>
+    <li><b>세션:</b> 로그인하면 임의 토큰을 발급해 <code>sessions</code>에 저장합니다. 비밀번호를 바꾸면 그 사용자의 세션을 모두 지웁니다.</li>
+    <li><b>시드 계정:</b> 처음 기동할 때 <code>ADMIN_USERNAME</code>/<code>ADMIN_PASSWORD</code>로 관리자를 만듭니다. 값을 주지 않으면 기본값을 씁니다.</li>
+    <li><b>페이지 권한:</b> <code>page_policy</code>가 앱별 페이지 목록과 규칙을 정의합니다. admin은 전부, viewer는 허용된 페이지와 settings만 접근할 수 있고 users는 쓸 수 없습니다. UI와 서버가 같은 규칙을 씁니다.</li>
+  </ul>
+</section>
+
+<section id="deploy">
+  <h2><span class="n">08</span>배포</h2>
+  <p><code>deploy/</code>가 GitOps의 단일 진실 소스입니다. ArgoCD Application <code>os-monitor-prod</code>가 <code>deploy/overlays/prod</code>를 main 브랜치에서 자동 동기화합니다(auto-sync, selfHeal, prune).</p>
+<pre><code># 1) 이미지 빌드·푸시 (태그 = git short SHA)
+docker build -f Dockerfile.collector -t registry.local.cloud:5000/os-monitor/collector:&lt;sha&gt; .
+docker push registry.local.cloud:5000/os-monitor/collector:&lt;sha&gt;
+
+# 2) 태그 갱신 후 main에 반영
+#    deploy/overlays/prod/kustomization.yaml → images[].newTag: "&lt;sha&gt;"
+git commit -am "chore: bump collector to &lt;sha&gt;" &amp;&amp; git push
+
+# 3) ArgoCD가 감지해 롤아웃 (기본 3분 폴링)</code></pre>
+  <div class="tbl"><table>
+    <thead><tr><th>이미지</th><th>Dockerfile</th><th>포함</th></tr></thead>
+    <tbody>
+      <tr><td>api</td><td><code>Dockerfile.api</code></td><td>FastAPI 서버</td></tr>
+      <tr><td>collector</td><td><code>Dockerfile.collector</code></td><td>수집기, 예측·리포트 CronJob</td></tr>
+      <tr><td>dashboard</td><td><code>Dockerfile.dashboard</code></td><td>nginx와 정적 자산. <code>entrypoint.sh</code>가 API 기본 경로를 주입</td></tr>
+    </tbody>
+  </table></div>
+  <p>CI 서비스(GitHub Actions)는 쓰지 않습니다. 빌드는 운영 서버에서 직접 하고, 배포는 Git 커밋만으로 일어납니다.</p>
+</section>
+
+<section id="security">
+  <h2><span class="n">09</span>보안 설계</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>영역</th><th>설계</th><th>상태</th></tr></thead>
+    <tbody>
+      <tr><td>노드 접근</td><td>SSH 수집을 없애고 Node Exporter 지표만 씁니다. 노드 계정이나 키를 배포하지 않습니다.</td><td><span class="pill ok">적용</span></td></tr>
+      <tr><td>비밀값</td><td>Sealed Secrets 컨트롤러(kube-system)의 공개키로 암호화한 SealedSecret만 Git에 둡니다. <code>scripts/seal-secrets.sh</code>는 값을 출력하지 않고 파이프로만 넘깁니다.</td><td><span class="pill warn">봉인 대기</span></td></tr>
+      <tr><td>소스 저장소 인증</td><td>remote URL에서 토큰을 지우고 gh 자격 헬퍼를 씁니다. 범위를 좁힌 fine-grained 토큰으로 교체할 예정입니다.</td><td><span class="pill warn">교체 대기</span></td></tr>
+      <tr><td>사용자 인증</td><td>PBKDF2 해시, 세션 토큰, 서버 측 페이지 권한 검사</td><td><span class="pill ok">적용</span></td></tr>
+      <tr><td>로그 개인정보</td><td>저널에는 인증 기록이 들어 있을 수 있습니다. UI는 우선순위와 징후 중심으로 보여 줍니다. 필요하면 promtail 파이프라인에서 걸러 냅니다.</td><td><span class="pill ok">적용</span></td></tr>
+    </tbody>
+  </table></div>
+  <p>운영 절차는 저장소의 <code>docs/security.md</code>와 <code>deploy/sealed-secrets/README.md</code>에 있습니다.</p>
+</section>
+
+<section id="ops">
+  <h2><span class="n">10</span>운영과 관측</h2>
+  <ul>
+    <li><b>프로브:</b> API와 대시보드에 liveness·readiness 프로브가 있습니다. API 프로브는 DB 연결까지 확인합니다.</li>
+    <li><b>알림 규칙:</b> PrometheusRule <code>OSMonitorAPIDown</code>, <code>OSMonitorDashboardDown</code>(kube-state-metrics 기반).</li>
+    <li><b>Node Exporter 설정:</b> 공용 prometheus-stack에 <code>--collector.processes</code>를 추가했습니다(<code>deploy/monitoring/</code>, <code>--reuse-values</code>로 적용).</li>
+    <li><b>테스트:</b> <code>make lint</code>(ruff), <code>make test-unit</code>(pytest), <code>make test-integration</code>(실제 DB·Prometheus·Loki 연동).</li>
+  </ul>
+</section>
+
+<section id="limits">
+  <h2><span class="n">11</span>제약과 과제</h2>
+  <ul>
+    <li>Alertmanager에 수신처가 없어서, 알림 규칙은 평가되지만 어디에도 전달되지 않습니다.</li>
+    <li>노드 목록(<code>NODE_MAP</code>)이 코드에 고정돼 있습니다. 노드를 늘리거나 줄이면 코드를 바꿔야 합니다. Prometheus target에서 자동으로 찾도록 바꾸는 것이 다음 과제입니다.</li>
+    <li>호스트 저널 promtail과 ArgoCD 노출용 프록시는 ArgoCD가 관리하지 않는 수동 리소스입니다.</li>
+    <li>API 이미지를 다음에 빌드해야 최신 지표 응답에 inode·uptime·프로세스 필드가 포함됩니다.</li>
+    <li>단위 테스트 2건(인증 401, 예측 데이터 부족 기대값)이 현재 코드 동작과 맞지 않아 갱신이 필요합니다.</li>
+  </ul>
+</section>
+</main>
+</div>
