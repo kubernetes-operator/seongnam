@@ -1,0 +1,10 @@
+# 공용 prometheus-stack(kube-prometheus-stack 83.4.2, monitoring ns)에 덧씌우는 값.
+# 목적: node-exporter processes 수집기 활성화 → node_processes_state{state="Z"} (좀비 프로세스) 제공.
+# extraArgs 는 목록 전체를 대체하므로 차트 기본 2개 인자를 그대로 유지하고 마지막 줄만 추가한다.
+# 적용: helm upgrade prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring \
+#         --version 83.4.2 --reuse-values -f deploy/monitoring/node-exporter-processes.values.yaml
+prometheus-node-exporter:
+  extraArgs:
+    - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run/containerd/.+|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
+    - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs|erofs)$
+    - --collector.processes

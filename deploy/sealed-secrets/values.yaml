@@ -1,5 +1,5 @@
 # sealed-secrets 컨트롤러 Helm values
-# 설치: helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
+# 설치: helm repo add sealed-secrets https://bitnami.github.io/sealed-secrets
 #       helm install sealed-secrets sealed-secrets/sealed-secrets -n kube-system --version 2.16.1 -f values.yaml
 fullnameOverride: sealed-secrets-controller   # kubeseal 기본 컨트롤러 이름과 맞춤
 resources:
