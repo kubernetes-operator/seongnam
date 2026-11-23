@@ -10,7 +10,7 @@ images:
   - name: registry.local.cloud:5000/os-monitor/api
     newTag: "7371e8243124"
   - name: registry.local.cloud:5000/os-monitor/collector
-    newTag: "ad7a566"
+    newTag: "020a3a5"
   - name: registry.local.cloud:5000/os-monitor/dashboard
     newTag: "7371e8243124"
 
