@@ -46,6 +46,13 @@ PROMQL = {
     "load1":             "node_load1",
     "load5":             "node_load5",
     "load15":            "node_load15",
+    # 이전에 SSH로 보완하던 항목 — 이제 Node Exporter 지표로 대체 (SSH 키 불필요)
+    "cpu_cores":         'count by(instance) (node_cpu_seconds_total{mode="idle"})',
+    "procs_running":     "node_procs_running",
+    # processes 수집기(--collector.processes)가 켜져 있을 때만 값이 있음. 없으면 None 으로 둔다.
+    "procs_zombie":      'sum by(instance) (node_processes_state{state="Z"})',
+    "inode_usage":       '(1 - node_filesystem_files_free{fstype!~"tmpfs|devtmpfs",mountpoint="/"} / node_filesystem_files{fstype!~"tmpfs|devtmpfs",mountpoint="/"}) * 100',
+    "uptime_sec":        "time() - node_boot_time_seconds",
 }
 
 
@@ -108,6 +115,12 @@ class PrometheusCollector:
         for instance, node_name in NODE_MAP.items():
             try:
                 load1 = _safe(metric_data["load1"], instance)
+                cores = _opt(metric_data["cpu_cores"], instance)
+                cores = int(cores) if cores else None
+                zombie = _opt(metric_data["procs_zombie"], instance)
+                inode = _opt(metric_data["inode_usage"], instance)
+                uptime = _opt(metric_data["uptime_sec"], instance)
+                running = _opt(metric_data["procs_running"], instance)
                 node_metrics.append({
                     "collected_at": collected_at,
                     "cluster_name": cluster_name,
@@ -116,6 +129,7 @@ class PrometheusCollector:
                     "cpu": {
                         "usage_ratio":    round(_safe(metric_data["cpu_usage"], instance), 2),
                         "iowait_percent": round(_safe(metric_data["cpu_iowait"], instance), 2),
+                        "cores":          cores,
                     },
                     "memory": {
                         "usage_ratio":      round(_safe(metric_data["memory_usage"], instance), 2),
@@ -126,6 +140,7 @@ class PrometheusCollector:
                         "usage_ratio":         round(_safe(metric_data["disk_usage"], instance), 2),
                         "read_bytes_per_sec":  int(_safe(metric_data["disk_read"], instance)),
                         "write_bytes_per_sec": int(_safe(metric_data["disk_write"], instance)),
+                        "inode_usage_ratio":   round(inode, 2) if inode is not None else None,
                     },
                     "network": {
                         "rx_bytes_per_sec": int(_safe(metric_data["net_rx"], instance)),
@@ -135,8 +150,11 @@ class PrometheusCollector:
                         "load1":       round(load1, 2),
                         "load5":       round(_safe(metric_data["load5"], instance), 2),
                         "load15":      round(_safe(metric_data["load15"], instance), 2),
-                        "load_per_core": round(load1, 2),  # SSH 보완 후 업데이트됨
+                        "load_per_core": round(load1 / cores, 2) if cores else round(load1, 2),
+                        "processes_running": int(running) if running is not None else None,
+                        "processes_zombie":  int(zombie) if zombie is not None else None,
                     },
+                    "uptime_sec":     round(uptime, 0) if uptime is not None else None,
                     "os_distro":      os_info.get(instance),
                     "kernel_version": kernel_info.get(instance),
                     "collection_status": "success",
@@ -161,6 +179,16 @@ def _safe(data, key: str, default: float = 0.0) -> float:
         return default
     v = data.get(key, default)
     return default if v is None else float(v)
+
+
+def _opt(data, key: str):
+    """값이 없거나 NaN/Inf 면 None (0 으로 오인 표시하지 않도록)."""
+    if isinstance(data, Exception):
+        return None
+    v = data.get(key)
+    if v is None or math.isnan(v) or math.isinf(v):
+        return None
+    return float(v)
 
 
 def _nan_zero(v: float) -> float:

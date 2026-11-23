@@ -67,6 +67,7 @@ async def insert_os_metrics(pool, records: list[dict]) -> int:
         "disk_usage_ratio", "disk_read_bytes_per_sec", "disk_write_bytes_per_sec",
         "net_rx_bytes_per_sec", "net_tx_bytes_per_sec",
         "processes_running", "processes_zombie",
+        "inode_usage_ratio", "uptime_sec",
     ]
 
     rows = []
@@ -96,6 +97,8 @@ async def insert_os_metrics(pool, records: list[dict]) -> int:
             net.get("tx_bytes_per_sec"),
             load.get("processes_running"),
             load.get("processes_zombie"),
+            disk.get("inode_usage_ratio"),
+            r.get("uptime_sec"),
         ))
 
     async with pool.acquire() as conn:
@@ -210,7 +213,8 @@ async def query_latest_metrics(pool, cluster_name: str) -> list[dict]:
         SELECT DISTINCT ON (node_name)
             node_name, time,
             cpu_usage_ratio, memory_usage_ratio, disk_usage_ratio,
-            load1, load_per_core, net_rx_bytes_per_sec, net_tx_bytes_per_sec
+            load1, load_per_core, net_rx_bytes_per_sec, net_tx_bytes_per_sec,
+            processes_running, processes_zombie, inode_usage_ratio, uptime_sec
         FROM os_metrics
         WHERE cluster_name = $1
           AND time > NOW() - INTERVAL '10 minutes'

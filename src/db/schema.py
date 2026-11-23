@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 -- 기존 배포 마이그레이션: content 컬럼이 없으면 추가
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS content TEXT;
+-- SSH 보완 수집을 Prometheus 지표로 대체하면서 추가된 컬럼
+ALTER TABLE os_metrics ADD COLUMN IF NOT EXISTS inode_usage_ratio DOUBLE PRECISION;
+ALTER TABLE os_metrics ADD COLUMN IF NOT EXISTS uptime_sec DOUBLE PRECISION;
 
 -- 로그인 사용자 (PBKDF2-HMAC-SHA256 해시 + per-user salt, 평문 저장 안 함)
 CREATE TABLE IF NOT EXISTS users (

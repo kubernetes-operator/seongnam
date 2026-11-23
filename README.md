@@ -11,7 +11,7 @@ Loki (LogQL)         ─┴─→ Collector ─→ TimescaleDB ─→ FastAPI �
                              Crisis / Predictor                 └─→ Reports (HTML/PDF/JSON)
 ```
 
-- **수집**: OS 메트릭은 Node Exporter(Prometheus) 우선 조회, 부족한 항목(inode, zombie process 등)은 SSH로 보완.
+- **수집**: OS 메트릭은 전부 Node Exporter(Prometheus) PromQL로 조회 (노드 SSH 접속·키 불필요).
 - **저장**: TimescaleDB(PostgreSQL)에 시계열 적재, hourly 연속 집계(Continuous Aggregate) 사용.
 - **로그**: 호스트 systemd journal을 전용 promtail로 Loki에 적재하고, `log_service`가 LogQL로 조회·요약·이상 시그니처 탐지 (아래 "시스템 로그 분석" 참고).
 - **분석**: 임계값 기반 위기 감지(`crisis_engine`) + Loki 로그 연계 진단, 선형회귀/이동평균 기반 예측(`predictor`).
@@ -31,7 +31,7 @@ Base OS 상태만 다룬다. **Kubernetes 리소스 자체(파드/디플로이�
 | **Disk** | 루트(`/`) 사용률, read/write B/s | 75% / 90% |
 | **Network** | rx/tx B/s (`lo` 제외) | — (추세 관찰) |
 | **Load** | load1/5/15, `load_per_core` | 1.5 / 2.0 (코어당) |
-| **보완(SSH)** | CPU 코어 수, 좀비 프로세스 수, inode 사용률, uptime | — |
+| **보완(Prometheus)** | CPU 코어 수, 실행 중/좀비 프로세스 수, 루트 inode 사용률, uptime | — (좀비는 Node Exporter `--collector.processes` 활성 시) |
 
 임계값 초과 시 `crisis_engine`이 위기 이벤트를 생성하고 관련 로그를 함께 첨부한다.
 
@@ -44,9 +44,8 @@ Base OS 상태만 다룬다. **Kubernetes 리소스 자체(파드/디플로이�
 
 ```
                                   ┌──────────────── 메트릭 경로 ────────────────┐
-  Node Exporter (전 노드)  ──PromQL──▶  Prometheus  ──┐
-                                                       ├─▶  Collector(Deployment, 60초 루프)
-  각 노드 SSH(kwlee@<ip>) ──보완수집──────────────────┘         │  (inode/zombie/uptime/cores)
+  Node Exporter (전 노드)  ──PromQL──▶  Prometheus  ───▶  Collector(Deployment, 60초 루프)
+                                                                │  (cpu/mem/disk/net/load + inode/uptime/cores/procs)
                                                                 ▼
                                                          TimescaleDB (hypertable + hourly CAGG)
                                                                 │
@@ -60,7 +59,7 @@ Base OS 상태만 다룬다. **Kubernetes 리소스 자체(파드/디플로이�
   CronJob:  predict(매일 02:30)   report-daily(매일 01:00)
 ```
 
-- **메트릭**: `os_collector`가 기존 Prometheus(Node Exporter)에 **PromQL**로 질의 → 새 DaemonSet 없이 CPU/Mem/Disk/Net/Load 수집. OS 배포판·커널은 `node_os_info`(pretty_name)·`node_uname_info`(release) info 메트릭의 라벨에서 추출. Prometheus에 없는 항목(inode, 좀비 프로세스, uptime, 코어 수)은 `os_ssh`가 `kwlee@<node-ip>` SSH로 보완(SSH 키 미제공 환경에서는 이 보완만 생략됨). `os_service`가 이를 60초마다 합쳐 TimescaleDB에 적재하고 임계값을 검사한다.
+- **메트릭**: `os_collector`가 기존 Prometheus(Node Exporter)에 **PromQL**로 질의 → 새 DaemonSet 없이 CPU/Mem/Disk/Net/Load 수집. OS 배포판·커널은 `node_os_info`(pretty_name)·`node_uname_info`(release) info 메트릭의 라벨에서 추출. 예전에 SSH로 보완하던 항목(코어 수, inode, uptime, 프로세스 수)도 Node Exporter 지표(`node_cpu_seconds_total` 개수, `node_filesystem_files*`, `node_boot_time_seconds`, `node_procs_running`, `node_processes_state`)로 수집하므로 노드 SSH 키가 필요 없다. 지표가 없으면 0이 아니라 null로 저장한다. `os_service`가 이를 60초마다 합쳐 TimescaleDB에 적재하고 임계값을 검사한다.
 - **로그**: 전용 `os-journal-promtail` DaemonSet이 각 노드의 영구 저널(`/var/log/journal`)을 읽어 Loki로 전송(`job="systemd-journal"`). `log_service`가 LogQL로 조회·요약·시그니처 탐지하고, `crisis_engine`은 위기 발생 시 관련 로그를 증거로 첨부한다. (로그는 Loki 자체 보존을 사용하며 TimescaleDB에 중복 저장하지 않는다.)
 - **저장**: 메트릭 시계열은 TimescaleDB 하이퍼테이블 + hourly 연속 집계. 로그는 Loki.
 - **제공**: FastAPI가 위 데이터를 REST로 노출하고, CLI·웹 대시보드·리포트가 이를 소비한다.
@@ -69,7 +68,7 @@ Base OS 상태만 다룬다. **Kubernetes 리소스 자체(파드/디플로이�
 
 ```
 src/
-  collector/    OS 수집기(os_collector: Prometheus PromQL, os_ssh: SSH 보완, os_service: 루프)
+  collector/    OS 수집기(os_collector: Prometheus PromQL, os_service: 루프)
   db/           TimescaleDB 스키마, 마이그레이션, 커넥션 풀, 쿼리
   analysis/     위기 감지(crisis_engine/crisis_catalog), 예측(predictor/predict_service), 로그 분석(log_service)
   api/          FastAPI 앱, 인증(auth), 라우터(auth/clusters/metrics/events/reports/predictions/logs)
@@ -92,7 +91,7 @@ scripts/        이미지 빌드·push 헬퍼 스크립트
 - **언어/런타임**: Python 3.11+
 - **API**: FastAPI, uvicorn, slowapi(rate limiting)
 - **DB**: TimescaleDB(PostgreSQL), asyncpg
-- **수집**: aiohttp(Prometheus), asyncssh(SSH 보완 수집)
+- **수집**: httpx(Prometheus PromQL)
 - **CLI**: Typer, Rich
 - **분석**: numpy
 - **대시보드**: Vanilla JS + 커스텀 CSS(`/ai/seoul` 기본 페이지 스타일, 라이트/다크 테마), Chart.js(게이지) — 빌드 도구 없음
@@ -245,5 +244,6 @@ docker push registry.local.cloud:5000/os-monitor/dashboard:$SHA
 | 2026-07-24 | **예측을 14일 미만 데이터에서도 표시**(현재값 기반 추정치 + 신뢰도 등급 low/very_low, 예측 탭에 신뢰도 열). **리포트 다운로드/미리보기 수정** — 내용을 DB(`reports.content`)에 저장해 API 다중 Pod/CronJob 간 공유 문제 해결, 대시보드에서 인증 fetch→blob 다운로드 + HTML iframe 미리보기(보기/다운로드 버튼). |
 | 2026-07-24 | **이벤트 발생 시각 표시 수정** — events 테이블 컬럼은 `time`인데 대시보드가 없는 `created_at`을 참조해 시각이 공백이던 버그 수정(목록·상세·개요 조치항목, 로컬 시각 포맷). |
 | 2026-07-24 | **자동 새로고침 주기 선택** 추가 — 기본 1분, 토바에서 10초/30초/1분/10분/새로고침 안함 선택(localStorage 저장). |
+| 2026-11-23 | **보안 정비** — 수집기의 노드 SSH 보완 수집 제거(`os_ssh`, asyncssh 삭제) → 코어 수·inode·uptime·프로세스 수를 Prometheus 지표로 대체하고 `os_metrics.inode_usage_ratio`/`uptime_sec` 컬럼 추가. 시크릿 GitOps 편입용 **Sealed Secrets** 구성(`deploy/sealed-secrets/`, `scripts/seal-secrets.sh`) 및 GitHub 토큰 교체 절차(`docs/security.md`) 추가. |
 
 > 하네스(에이전트/스킬) 구성 변경 이력은 `CLAUDE.md`의 변경 이력 표를 참고.
