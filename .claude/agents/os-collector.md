@@ -1,6 +1,6 @@
 ---
 name: os-collector
-description: Prometheus API(PromQL)를 통해 기존 Node Exporter에서 OS 메트릭을 수집하는 에이전트. Node Exporter가 이미 전 노드에 DaemonSet으로 운영 중이므로 새 DaemonSet 없이 Prometheus 쿼리만으로 CPU, Memory, Disk, Network, Load 데이터를 가져온다. Prometheus에 없는 세부 정보(inode, zombie process 등)는 SSH(kwlee@<IP>)로 보완 수집한다.
+description: Prometheus API(PromQL)를 통해 기존 Node Exporter에서 OS 메트릭을 수집하는 에이전트. Node Exporter가 이미 전 노드에 DaemonSet으로 운영 중이므로 새 DaemonSet 없이 Prometheus 쿼리만으로 CPU, Memory, Disk, Network, Load 데이터를 가져온다. 코어 수·inode·uptime·프로세스 수도 Node Exporter 지표로 가져오며 노드 SSH 접속은 사용하지 않는다.
 model: opus
 ---
 
@@ -89,37 +89,24 @@ NODE_MAP = {
 label_replace(node_load1, "node_name", "$1", "instance", "(.+):.+")
 ```
 
-## SSH 보완 수집 (Prometheus에 없는 데이터)
+## 보완 지표 (예전 SSH 보완 → Prometheus로 대체)
 
-inode 사용률, 좀비 프로세스, 상세 OS 정보 등 Node Exporter가 수집하지 않는 항목은 SSH로 보완한다.
+노드 SSH 접속은 키 관리 부담·권한 노출 때문에 사용하지 않는다. 아래 PromQL로 대체한다.
 
-```python
-import asyncssh
+| 항목 | PromQL |
+|---|---|
+| CPU 코어 수 | `count by(instance) (node_cpu_seconds_total{mode="idle"})` |
+| 실행 중 프로세스 | `node_procs_running` |
+| 좀비 프로세스 | `sum by(instance) (node_processes_state{state="Z"})` (Node Exporter `--collector.processes` 필요, 없으면 null) |
+| 루트 inode 사용률 | `(1 - node_filesystem_files_free{mountpoint="/"} / node_filesystem_files{mountpoint="/"}) * 100` |
+| uptime | `time() - node_boot_time_seconds` |
+| OS/커널 | `node_os_info`(pretty_name), `node_uname_info`(release) 라벨 |
 
-async def ssh_collect_supplement(node_ip: str) -> dict:
-    """Prometheus에 없는 OS 정보를 SSH로 수집한다."""
-    async with asyncssh.connect(node_ip, username="kwlee", known_hosts=None) as conn:
-        results = await asyncio.gather(
-            conn.run("df -i --output=target,iuse% 2>/dev/null | tail -n+2"),
-            conn.run("ps aux | awk '$8==\"Z\"' | wc -l"),
-            conn.run("uname -r && cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"'"),
-            conn.run("cat /proc/uptime | awk '{print $1}'"),
-        )
-    return {
-        "inode_usage": parse_inode(results[0].stdout),
-        "zombie_count": int(results[1].stdout.strip() or 0),
-        "kernel": results[2].stdout.split('\n')[0].strip(),
-        "os_distro": results[2].stdout.split('\n')[1].strip() if '\n' in results[2].stdout else "",
-        "uptime_sec": float(results[3].stdout.strip()),
-    }
-```
-
-대상 노드 IP 목록: 192.168.77.101~103, 192.168.78.101~105
+지표가 없을 때는 0이 아니라 null로 둔다(정상값으로 오인 방지).
 
 ## 수집 주기 및 실행 방식
 
 - **Prometheus 쿼리**: 60초마다 `/api/v1/query` (instant query) 실행
-- **SSH 보완 수집**: 5분마다 실행 (덜 중요하므로 낮은 빈도)
 - **배포 방식**: Deployment (단일 파드, StatefulSet 불필요)
 
 ## 출력 프로토콜
@@ -148,8 +135,8 @@ async def ssh_collect_supplement(node_ip: str) -> dict:
 ## 에러 핸들링
 
 - Prometheus 접근 불가: 재시도 3회 (지수 백오프), 이후 에러 기록
-- SSH 보완 실패: 해당 필드 null 처리, 주 데이터는 Prometheus에서 정상 수집
-- 특정 노드 누락: `collection_status: "prometheus_only"` 또는 `"ssh_failed"` 표시
+- 보완 지표 누락: 해당 필드 null 처리, 주 데이터는 정상 수집
+- 특정 노드 누락: `collection_status: "prometheus_only"` 표시
 
 ## 협업
 

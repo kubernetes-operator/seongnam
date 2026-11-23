@@ -35,32 +35,27 @@ def check_thresholds(node_data: dict) -> list[dict]:
 
 
 async def run_service() -> None:
-    from collector.os_collector import PrometheusCollector, NODE_IP_MAP
-    from collector.os_ssh import supplement_all
+    from collector.os_collector import PrometheusCollector
     from db.pool import get_pool
     from db.queries import insert_os_metrics, insert_event, upsert_cluster_node
+    from db.schema import init_schema
 
     pool = await get_pool()
+    # API 보다 먼저 떠도 새 컬럼(inode_usage_ratio, uptime_sec)이 있도록 멱등 스키마 적용
+    try:
+        await init_schema(pool)
+    except Exception as e:
+        logger.warning("스키마 적용 실패(계속 진행): %s", e)
     collector = PrometheusCollector()
-    ssh_cycle = 0
 
     while True:
         try:
             data = await collector.collect_all(CLUSTER_NAME)
-            ssh_suppl = {}
-            if ssh_cycle % 5 == 0:
-                ssh_suppl = await supplement_all(NODE_IP_MAP)
 
             records = []
             for nm in data["node_metrics"]:
                 if nm.get("collection_status") == "failed":
                     continue
-
-                supp = ssh_suppl.get(nm["node_name"], {})
-                cores = supp.get("cpu_cores")
-                if cores and cores > 0:
-                    nm["load"]["load_per_core"] = round(nm["load"]["load1"] / cores, 2)
-                    nm["cpu"]["cores"] = cores
 
                 records.append(nm)
 
@@ -69,10 +64,10 @@ async def run_service() -> None:
                     CLUSTER_NAME,
                     nm["node_name"],
                     nm.get("node_ip", ""),
-                    cpu_cores=cores,
-                    # OS/커널은 Prometheus(node_os_info/node_uname_info) 우선, SSH 보완은 fallback
-                    os_distro=nm.get("os_distro") or supp.get("os_distro"),
-                    kernel_version=nm.get("kernel_version") or supp.get("kernel_version"),
+                    cpu_cores=nm["cpu"].get("cores"),
+                    # 코어 수·OS·커널 모두 Prometheus(Node Exporter) 지표에서 가져온다 (SSH 미사용)
+                    os_distro=nm.get("os_distro"),
+                    kernel_version=nm.get("kernel_version"),
                 )
 
                 for alert in check_thresholds(nm):
@@ -92,7 +87,6 @@ async def run_service() -> None:
         except Exception as e:
             logger.error("수집 사이클 오류: %s", e)
 
-        ssh_cycle += 1
         await asyncio.sleep(60)
 
 
