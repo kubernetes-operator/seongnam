@@ -50,7 +50,8 @@ PROMQL = {
     "cpu_cores":         'count by(instance) (node_cpu_seconds_total{mode="idle"})',
     "procs_running":     "node_procs_running",
     # processes 수집기(--collector.processes)가 켜져 있을 때만 값이 있음. 없으면 None 으로 둔다.
-    "procs_zombie":      'sum by(instance) (node_processes_state{state="Z"})',
+    # 좀비가 0개면 state="Z" 시계열 자체가 없으므로, 수집기가 켜진 노드는 0 으로 채운다.
+    "procs_zombie":      'sum by(instance) (node_processes_state{state="Z"}) or (0 * count by(instance) (node_processes_state))',
     "inode_usage":       '(1 - node_filesystem_files_free{fstype!~"tmpfs|devtmpfs",mountpoint="/"} / node_filesystem_files{fstype!~"tmpfs|devtmpfs",mountpoint="/"}) * 100',
     "uptime_sec":        "time() - node_boot_time_seconds",
 }

@@ -13,8 +13,8 @@ Sealed Secrets는 클러스터 안 컨트롤러의 **공개키로 암호화한 `
 
 | 단계 | 누가 | 명령 |
 |---|---|---|
-| 1. 컨트롤러 설치 | 승인 후 실행 | `helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets`<br>`helm install sealed-secrets sealed-secrets/sealed-secrets -n kube-system --version 2.16.1 -f deploy/sealed-secrets/values.yaml` |
-| 2. kubeseal CLI 설치 | 운영자 | https://github.com/bitnami-labs/sealed-secrets/releases 에서 v0.27.1 linux-amd64 를 받아 `/usr/local/bin/kubeseal` 에 둡니다 |
+| 1. 컨트롤러 설치 | 승인 후 실행 | `helm repo add sealed-secrets https://bitnami.github.io/sealed-secrets`<br>`helm install sealed-secrets sealed-secrets/sealed-secrets -n kube-system --version 2.16.1 -f deploy/sealed-secrets/values.yaml` |
+| 2. kubeseal CLI 설치 | 운영자 | https://github.com/bitnami/sealed-secrets/releases 에서 v0.27.1 linux-amd64 를 받아 `/usr/local/bin/kubeseal` 에 둡니다 |
 | 3. 봉인 | 운영자 (값이 대화·로그에 남지 않도록) | `scripts/seal-secrets.sh` |
 | 4. 확인 | 누구나 | `kubectl kustomize deploy/overlays/prod \| grep -c 'kind: SealedSecret'` → 2 |
 | 5. 커밋·푸시 | 승인 후 | `deploy/base/secrets/`, `deploy/base/kustomization.yaml` |
