@@ -2,8 +2,8 @@
 
 | 항목 | 상태 | 문서·도구 |
 |---|---|---|
-| 노드 SSH 의존 제거 | 코드 반영 완료 (수집기가 Prometheus 지표만 사용) | `src/collector/os_collector.py` |
-| 시크릿 GitOps 편입 | 구성 준비 완료, 컨트롤러 설치·봉인 대기 | `deploy/sealed-secrets/README.md`, `scripts/seal-secrets.sh` |
+| 노드 SSH 의존 제거 | **완료** — 수집기가 Prometheus 지표만 사용. 좀비 지표용 node-exporter `--collector.processes` 활성화(공용 prometheus-stack helm revision 3) | `src/collector/os_collector.py`, `deploy/monitoring/` |
+| 시크릿 GitOps 편입 | 컨트롤러 설치 **완료**(kube-system, 차트 2.16.1) → **운영자가 kubeseal 설치 후 봉인·개인키 백업 필요** | `deploy/sealed-secrets/README.md`, `scripts/seal-secrets.sh` |
 | GitHub 토큰 교체 | **운영자 직접 수행 필요** | 아래 절차 |
 
 자격 증명을 만들거나, 바꾸거나, 지우는 일과 그 값을 다루는 일은 운영자가 직접 합니다.
